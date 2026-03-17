@@ -79,6 +79,7 @@ interface AppContextType {
   addCategory: (category: { name: string; type: string; color?: string; icon?: string }) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
   savingPlaces: SavingPlace[];
   addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => Promise<void>;
   updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
@@ -188,6 +189,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWallets(updatedWallets);
   };
 
+  const deleteTransaction = async (id: string) => {
+    await transactionApi.delete(id);
+    setTransactions(prev => prev.filter(t => t.id !== id));
+    // Refresh wallets to get updated balance
+    const updatedWallets = await walletApi.getAll();
+    setWallets(updatedWallets);
+  };
+
   const addSavingPlace = async (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => {
     const created = await savingApi.create(savingPlace);
     setSavingPlaces(prev => [...prev, created]);
@@ -223,6 +232,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addCategory,
         transactions,
         addTransaction,
+        deleteTransaction,
         savingPlaces,
         addSavingPlace,
         updateSavingPlace,

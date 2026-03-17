@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -10,9 +10,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '../components/ui/alert-dialog';
 
 export default function TransactionsPage() {
-  const { transactions, wallets, categories, addTransaction } = useApp();
+  const { transactions, wallets, categories, addTransaction, deleteTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -105,15 +116,53 @@ export default function TransactionsPage() {
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p
-                  className={`text-lg font-bold ${
-                    transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {transaction.type === 'INCOME' ? '+' : '-'}
-                  {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
-                </p>
+              <div className="text-right flex items-center gap-4">
+                <div>
+                  <p
+                    className={`text-lg font-bold ${
+                      transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {transaction.type === 'INCOME' ? '+' : '-'}
+                    {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the
+                        transaction and update your wallet balance.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 hover:bg-red-700"
+                        onClick={async () => {
+                          try {
+                            await deleteTransaction(transaction.id);
+                            toast.success('Transaction deleted');
+                          } catch (error: any) {
+                            toast.error(error.message || 'Failed to delete transaction');
+                          }
+                        }}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           );
