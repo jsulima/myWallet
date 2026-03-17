@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -10,11 +10,13 @@ import { Progress } from '../components/ui/progress';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
+import { currencyApi } from '../services/api';
 
 export default function BudgetPage() {
-  const { budgetPlans, addBudgetPlan, categories, transactions } = useApp();
+  const { budgetPlans, addBudgetPlan, categories, transactions, wallets } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -22,6 +24,22 @@ export default function BudgetPage() {
     categoryId: '',
     plannedAmount: '',
   });
+
+  useEffect(() => {
+    currencyApi.getRates().then(setRates).catch(console.error);
+  }, []);
+
+  const convertToUSD = (amount: number, currency: string) => {
+    if (currency === 'USD') return amount;
+    const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
+    if (rateEntry) return amount * rateEntry.rate;
+    
+    // Fallback if rates not loaded yet or not found
+    if (currency === 'UAH') return amount / 40;
+    return amount;
+  };
+
+  const getWalletById = (id: string) => wallets.find(w => w.id === id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +84,10 @@ export default function BudgetPage() {
           transactionDate.getMonth() + 1 === month
         );
       })
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => {
+        const wallet = getWalletById(t.walletId);
+        return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
+      }, 0);
   };
 
   const currentMonthBudgets = budgetPlans
