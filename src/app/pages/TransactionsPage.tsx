@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
+import TransferDialog from '../components/TransferDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ import {
 export default function TransactionsPage() {
   const { transactions, wallets, categories, addTransaction, deleteTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     walletId: '',
@@ -179,13 +181,18 @@ export default function TransactionsPage() {
             <h1 className="text-3xl font-bold">Transactions</h1>
             <p className="text-gray-600">Track your income and expenses</p>
           </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Transaction
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
+              <ArrowUpRight className="h-4 w-4 mr-2" />
+              Transfer
+            </Button>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Transaction
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Transaction</DialogTitle>
@@ -283,6 +290,8 @@ export default function TransactionsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          <TransferDialog open={isTransferOpen} onOpenChange={setIsTransferOpen} />
+          </div>
         </div>
 
         <Card>

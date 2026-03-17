@@ -132,3 +132,19 @@ export const creditApi = {
   delete: (id: string) =>
     request<any>(`/credits/${id}`, { method: 'DELETE' }),
 };
+
+// Transfers
+export const transferApi = {
+  getAll: () => request<any[]>('/transfers'),
+  create: (data: {
+    sourceWalletId: string;
+    targetWalletId: string;
+    sourceAmount: number;
+    targetAmount: number;
+    exchangeRate: number;
+    categoryId: string;
+    description?: string;
+    date?: string;
+  }) =>
+    request<any>('/transfers', { method: 'POST', body: JSON.stringify(data) }),
+};

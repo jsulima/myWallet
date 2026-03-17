@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
   authApi, walletApi, categoryApi, transactionApi,
-  budgetApi, savingApi, creditApi,
+  budgetApi, savingApi, creditApi, transferApi,
   setToken, clearToken,
 } from '../services/api';
 
@@ -80,6 +80,16 @@ interface AppContextType {
   transactions: Transaction[];
   addTransaction: (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  transferMoney: (data: {
+    sourceWalletId: string;
+    targetWalletId: string;
+    sourceAmount: number;
+    targetAmount: number;
+    exchangeRate: number;
+    categoryId: string;
+    description?: string;
+    date?: string;
+  }) => Promise<void>;
   savingPlaces: SavingPlace[];
   addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => Promise<void>;
   updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
@@ -197,6 +207,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWallets(updatedWallets);
   };
 
+  const transferMoney = async (data: {
+    sourceWalletId: string;
+    targetWalletId: string;
+    sourceAmount: number;
+    targetAmount: number;
+    exchangeRate: number;
+    categoryId: string;
+    description?: string;
+    date?: string;
+  }) => {
+    await transferApi.create(data);
+    // Refresh all data to get new transactions and updated balances
+    await fetchAllData();
+  };
+
   const addSavingPlace = async (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => {
     const created = await savingApi.create(savingPlace);
     setSavingPlaces(prev => [...prev, created]);
@@ -233,6 +258,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         transactions,
         addTransaction,
         deleteTransaction,
+        transferMoney,
         savingPlaces,
         addSavingPlace,
         updateSavingPlace,
