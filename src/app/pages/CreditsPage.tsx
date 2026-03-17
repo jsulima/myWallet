@@ -34,7 +34,7 @@ export default function CreditsPage() {
         remainingAmount: parseFloat(formData.remainingAmount),
         interestRate: parseFloat(formData.interestRate),
         monthlyPayment: parseFloat(formData.monthlyPayment),
-        dueDate: formData.dueDate,
+        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : '',
       });
 
       toast.success('Credit added successfully!');

@@ -32,8 +32,18 @@ async function request<T>(
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || 'Request failed');
+    const errorBody = await res.json().catch(() => ({ error: 'Request failed' }));
+    let errorMessage = 'Request failed';
+    
+    if (typeof errorBody.error === 'string') {
+      errorMessage = errorBody.error;
+    } else if (Array.isArray(errorBody.error)) {
+      errorMessage = errorBody.error.map((issue: any) => issue.message).join(', ');
+    } else if (typeof errorBody.error === 'object') {
+      errorMessage = JSON.stringify(errorBody.error);
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return res.json();
