@@ -14,20 +14,20 @@ import { toast } from 'sonner';
 export default function BudgetPage() {
   const { budgetPlans, addBudgetPlan, categories, transactions } = useApp();
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [formData, setFormData] = useState({
     categoryId: '',
     plannedAmount: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const existingPlan = budgetPlans.find(
-      bp => bp.month === selectedMonth && bp.categoryId === formData.categoryId
+      bp => bp.month === selectedMonth && bp.year === selectedYear && bp.categoryId === formData.categoryId
     );
 
     if (existingPlan) {
@@ -35,59 +35,63 @@ export default function BudgetPage() {
       return;
     }
 
-    addBudgetPlan({
-      month: selectedMonth,
-      categoryId: formData.categoryId,
-      plannedAmount: parseFloat(formData.plannedAmount),
-      spentAmount: 0,
-    });
+    setIsLoading(true);
+    try {
+      await addBudgetPlan({
+        categoryId: formData.categoryId,
+        limit: parseFloat(formData.plannedAmount),
+        month: selectedMonth,
+        year: selectedYear,
+      });
 
-    toast.success('Budget plan created successfully!');
-    setIsOpen(false);
-    setFormData({
-      categoryId: '',
-      plannedAmount: '',
-    });
+      toast.success('Budget plan created successfully!');
+      setIsOpen(false);
+      setFormData({ categoryId: '', plannedAmount: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create budget');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Calculate spent amount for each budget plan
-  const getSpentAmount = (categoryId: string, month: string) => {
-    const [year, monthNum] = month.split('-').map(Number);
+  const getSpentAmount = (categoryId: string, month: number, year: number) => {
     return transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
         return (
-          t.type === 'expense' &&
+          t.type === 'EXPENSE' &&
           t.categoryId === categoryId &&
           transactionDate.getFullYear() === year &&
-          transactionDate.getMonth() + 1 === monthNum
+          transactionDate.getMonth() + 1 === month
         );
       })
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
   const currentMonthBudgets = budgetPlans
-    .filter(bp => bp.month === selectedMonth)
+    .filter(bp => bp.month === selectedMonth && bp.year === selectedYear)
     .map(bp => ({
       ...bp,
-      spentAmount: getSpentAmount(bp.categoryId, bp.month),
+      spentAmount: getSpentAmount(bp.categoryId, bp.month, bp.year),
     }));
 
-  const totalPlanned = currentMonthBudgets.reduce((sum, bp) => sum + bp.plannedAmount, 0);
+  const totalPlanned = currentMonthBudgets.reduce((sum, bp) => sum + bp.limit, 0);
   const totalSpent = currentMonthBudgets.reduce((sum, bp) => sum + bp.spentAmount, 0);
-  const overBudgetCount = currentMonthBudgets.filter(bp => bp.spentAmount > bp.plannedAmount).length;
+  const overBudgetCount = currentMonthBudgets.filter(bp => bp.spentAmount > bp.limit).length;
 
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
 
-  // Generate month options (current month and next 11 months)
   const generateMonthOptions = () => {
     const options = [];
-    const now = new Date();
     for (let i = 0; i < 12; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      options.push({ value, label });
+      options.push({
+        month: date.getMonth() + 1,
+        year: date.getFullYear(),
+        label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        value: `${date.getFullYear()}-${date.getMonth() + 1}`,
+      });
     }
     return options;
   };
@@ -116,7 +120,7 @@ export default function BudgetPage() {
                 <div>
                   <Label>Month</Label>
                   <p className="text-sm text-gray-600 mt-1">
-                    {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {new Date(selectedYear, selectedMonth - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </p>
                 </div>
 
@@ -128,7 +132,7 @@ export default function BudgetPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {categories
-                        .filter(cat => cat.name !== 'Salary' && cat.name !== 'Other')
+                        .filter(cat => cat.type === 'EXPENSE')
                         .map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
@@ -151,8 +155,8 @@ export default function BudgetPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  Create Budget Plan
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Creating...' : 'Create Budget Plan'}
                 </Button>
               </form>
             </DialogContent>
@@ -163,7 +167,14 @@ export default function BudgetPage() {
         <Card>
           <CardContent className="pt-6">
             <Label>Select Month</Label>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <Select
+              value={`${selectedYear}-${selectedMonth}`}
+              onValueChange={(value) => {
+                const [y, m] = value.split('-').map(Number);
+                setSelectedYear(y);
+                setSelectedMonth(m);
+              }}
+            >
               <SelectTrigger className="mt-2">
                 <SelectValue />
               </SelectTrigger>
@@ -233,8 +244,8 @@ export default function BudgetPage() {
           ) : (
             currentMonthBudgets.map((budget) => {
               const category = getCategoryById(budget.categoryId);
-              const percentage = (budget.spentAmount / budget.plannedAmount) * 100;
-              const isOverBudget = budget.spentAmount > budget.plannedAmount;
+              const percentage = (budget.spentAmount / budget.limit) * 100;
+              const isOverBudget = budget.spentAmount > budget.limit;
               
               return (
                 <Card key={budget.id}>
@@ -244,7 +255,7 @@ export default function BudgetPage() {
                         <div className="flex items-center gap-3">
                           <div
                             className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: category?.color }}
+                            style={{ backgroundColor: category?.color || '#6b7280' }}
                           />
                           <h3 className="font-semibold">{category?.name}</h3>
                         </div>
@@ -265,14 +276,14 @@ export default function BudgetPage() {
                           ${budget.spentAmount.toFixed(2)} spent
                         </span>
                         <span className="text-gray-600">
-                          of ${budget.plannedAmount.toFixed(2)} planned ({percentage.toFixed(0)}%)
+                          of ${budget.limit.toFixed(2)} planned ({percentage.toFixed(0)}%)
                         </span>
                       </div>
                       
                       <div className="text-sm text-gray-600">
                         Remaining: 
                         <span className={`ml-1 font-semibold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
-                          ${(budget.plannedAmount - budget.spentAmount).toFixed(2)}
+                          ${(budget.limit - budget.spentAmount).toFixed(2)}
                         </span>
                       </div>
                     </div>

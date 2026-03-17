@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
@@ -14,6 +13,7 @@ import { toast } from 'sonner';
 export default function SavingsPage() {
   const { savingPlaces, addSavingPlace, updateSavingPlace } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false);
   const [selectedSaving, setSelectedSaving] = useState<string | null>(null);
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
@@ -21,33 +21,32 @@ export default function SavingsPage() {
     name: '',
     targetAmount: '',
     currentAmount: '',
-    currency: 'USD' as 'USD' | 'UAH',
     deadline: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    addSavingPlace({
-      name: formData.name,
-      targetAmount: parseFloat(formData.targetAmount),
-      currentAmount: parseFloat(formData.currentAmount) || 0,
-      currency: formData.currency,
-      deadline: formData.deadline || undefined,
-    });
+    setIsLoading(true);
 
-    toast.success('Savings goal created successfully!');
-    setIsOpen(false);
-    setFormData({
-      name: '',
-      targetAmount: '',
-      currentAmount: '',
-      currency: 'USD',
-      deadline: '',
-    });
+    try {
+      await addSavingPlace({
+        name: formData.name,
+        targetAmount: parseFloat(formData.targetAmount),
+        currentAmount: parseFloat(formData.currentAmount) || 0,
+        deadline: formData.deadline || undefined,
+      });
+
+      toast.success('Savings goal created successfully!');
+      setIsOpen(false);
+      setFormData({ name: '', targetAmount: '', currentAmount: '', deadline: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create savings goal');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAddMoney = () => {
+  const handleAddMoney = async () => {
     if (!selectedSaving) return;
     
     const saving = savingPlaces.find(s => s.id === selectedSaving);
@@ -59,14 +58,18 @@ export default function SavingsPage() {
       return;
     }
 
-    updateSavingPlace(selectedSaving, {
-      currentAmount: saving.currentAmount + amount,
-    });
+    try {
+      await updateSavingPlace(selectedSaving, {
+        currentAmount: saving.currentAmount + amount,
+      });
 
-    toast.success('Money added to savings!');
-    setIsAddMoneyOpen(false);
-    setSelectedSaving(null);
-    setAddMoneyAmount('');
+      toast.success('Money added to savings!');
+      setIsAddMoneyOpen(false);
+      setSelectedSaving(null);
+      setAddMoneyAmount('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add money');
+    }
   };
 
   return (
@@ -100,22 +103,6 @@ export default function SavingsPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select
-                    value={formData.currency}
-                    onValueChange={(value: 'USD' | 'UAH') => setFormData({ ...formData, currency: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                      <SelectItem value="UAH">UAH - Ukrainian Hryvnia (₴)</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div>
@@ -153,8 +140,8 @@ export default function SavingsPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  Create Goal
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Creating...' : 'Create Goal'}
                 </Button>
               </form>
             </DialogContent>
@@ -204,13 +191,13 @@ export default function SavingsPage() {
                       <div>
                         <p className="text-sm text-gray-600">Current</p>
                         <p className="text-lg font-bold">
-                          {saving.currency === 'USD' ? '$' : '₴'}{saving.currentAmount.toFixed(2)}
+                          ${saving.currentAmount.toFixed(2)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Target</p>
                         <p className="text-lg font-bold">
-                          {saving.currency === 'USD' ? '$' : '₴'}{saving.targetAmount.toFixed(2)}
+                          ${saving.targetAmount.toFixed(2)}
                         </p>
                       </div>
                     </div>

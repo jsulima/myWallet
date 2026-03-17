@@ -11,23 +11,31 @@ import { toast } from 'sonner';
 export default function AddWalletPage() {
   const navigate = useNavigate();
   const { addWallet } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    currency: 'USD' as 'USD' | 'UAH',
+    currency: 'USD',
     balance: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    addWallet({
-      name: formData.name,
-      currency: formData.currency,
-      balance: parseFloat(formData.balance) || 0,
-    });
+    setIsLoading(true);
 
-    toast.success('Wallet created successfully!');
-    navigate('/dashboard');
+    try {
+      await addWallet({
+        name: formData.name,
+        currency: formData.currency,
+        balance: parseFloat(formData.balance) || 0,
+      });
+
+      toast.success('Wallet created successfully!');
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create wallet');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,7 +67,7 @@ export default function AddWalletPage() {
             <Label htmlFor="currency">Currency</Label>
             <Select
               value={formData.currency}
-              onValueChange={(value: 'USD' | 'UAH') => setFormData({ ...formData, currency: value })}
+              onValueChange={(value) => setFormData({ ...formData, currency: value })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -83,8 +91,8 @@ export default function AddWalletPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            Create Wallet
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Creating...' : 'Create Wallet'}
           </Button>
         </form>
 

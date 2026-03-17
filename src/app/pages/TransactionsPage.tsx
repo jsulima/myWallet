@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Plus, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -14,16 +14,17 @@ import { toast } from 'sonner';
 export default function TransactionsPage() {
   const { transactions, wallets, categories, addTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     walletId: '',
     categoryId: '',
-    type: 'expense' as 'income' | 'expense',
+    type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
     amount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.walletId || !formData.categoryId) {
@@ -31,33 +32,40 @@ export default function TransactionsPage() {
       return;
     }
 
-    addTransaction({
-      walletId: formData.walletId,
-      categoryId: formData.categoryId,
-      type: formData.type,
-      amount: parseFloat(formData.amount),
-      description: formData.description,
-      date: formData.date,
-    });
+    setIsLoading(true);
+    try {
+      await addTransaction({
+        walletId: formData.walletId,
+        categoryId: formData.categoryId,
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        description: formData.description,
+        date: new Date(formData.date).toISOString(),
+      });
 
-    toast.success('Transaction added successfully!');
-    setIsOpen(false);
-    setFormData({
-      walletId: '',
-      categoryId: '',
-      type: 'expense',
-      amount: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-    });
+      toast.success('Transaction added successfully!');
+      setIsOpen(false);
+      setFormData({
+        walletId: '',
+        categoryId: '',
+        type: 'EXPENSE',
+        amount: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+      });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add transaction');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sortedTransactions = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const incomeTransactions = sortedTransactions.filter(t => t.type === 'income');
-  const expenseTransactions = sortedTransactions.filter(t => t.type === 'expense');
+  const incomeTransactions = sortedTransactions.filter(t => t.type === 'INCOME');
+  const expenseTransactions = sortedTransactions.filter(t => t.type === 'EXPENSE');
 
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
@@ -80,10 +88,10 @@ export default function TransactionsPage() {
               <div className="flex items-center gap-4">
                 <div
                   className={`p-2 rounded-full ${
-                    transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                    transaction.type === 'INCOME' ? 'bg-green-100' : 'bg-red-100'
                   }`}
                 >
-                  {transaction.type === 'income' ? (
+                  {transaction.type === 'INCOME' ? (
                     <ArrowUpRight className="h-5 w-5 text-green-600" />
                   ) : (
                     <ArrowDownRight className="h-5 w-5 text-red-600" />
@@ -100,10 +108,10 @@ export default function TransactionsPage() {
               <div className="text-right">
                 <p
                   className={`text-lg font-bold ${
-                    transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
                   }`}
                 >
-                  {transaction.type === 'income' ? '+' : '-'}
+                  {transaction.type === 'INCOME' ? '+' : '-'}
                   {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
                 </p>
               </div>
@@ -141,13 +149,13 @@ export default function TransactionsPage() {
                   <Label>Type</Label>
                   <Tabs
                     value={formData.type}
-                    onValueChange={(value: 'income' | 'expense') =>
-                      setFormData({ ...formData, type: value })
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, type: value as 'INCOME' | 'EXPENSE' })
                     }
                   >
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="expense">Expense</TabsTrigger>
-                      <TabsTrigger value="income">Income</TabsTrigger>
+                      <TabsTrigger value="EXPENSE">Expense</TabsTrigger>
+                      <TabsTrigger value="INCOME">Income</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -220,8 +228,8 @@ export default function TransactionsPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  Add Transaction
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Adding...' : 'Add Transaction'}
                 </Button>
               </form>
             </DialogContent>

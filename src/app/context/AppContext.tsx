@@ -1,4 +1,9 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  authApi, walletApi, categoryApi, transactionApi,
+  budgetApi, savingApi, creditApi,
+  setToken, clearToken,
+} from '../services/api';
 
 export interface User {
   id: string;
@@ -9,7 +14,7 @@ export interface User {
 export interface Wallet {
   id: string;
   name: string;
-  currency: 'USD' | 'UAH';
+  currency: string;
   balance: number;
 }
 
@@ -18,16 +23,19 @@ export interface Category {
   name: string;
   color: string;
   icon: string;
+  type: 'INCOME' | 'EXPENSE';
 }
 
 export interface Transaction {
   id: string;
   walletId: string;
   categoryId: string;
-  type: 'income' | 'expense';
+  type: 'INCOME' | 'EXPENSE';
   amount: number;
   description: string;
   date: string;
+  category?: Category;
+  wallet?: Wallet;
 }
 
 export interface SavingPlace {
@@ -35,7 +43,6 @@ export interface SavingPlace {
   name: string;
   targetAmount: number;
   currentAmount: number;
-  currency: 'USD' | 'UAH';
   deadline?: string;
 }
 
@@ -44,7 +51,7 @@ export interface Credit {
   name: string;
   totalAmount: number;
   remainingAmount: number;
-  currency: 'USD' | 'UAH';
+  paidAmount: number;
   interestRate: number;
   monthlyPayment: number;
   dueDate: string;
@@ -52,108 +59,163 @@ export interface Credit {
 
 export interface BudgetPlan {
   id: string;
-  month: string; // YYYY-MM
   categoryId: string;
-  plannedAmount: number;
-  spentAmount: number;
+  limit: number;
+  month: number;
+  year: number;
+  category?: Category;
 }
 
 interface AppContextType {
   user: User | null;
-  setUser: (user: User | null) => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
+  logout: () => void;
   wallets: Wallet[];
-  addWallet: (wallet: Omit<Wallet, 'id'>) => void;
-  updateWallet: (id: string, wallet: Partial<Wallet>) => void;
+  addWallet: (wallet: Omit<Wallet, 'id'>) => Promise<void>;
+  updateWallet: (id: string, wallet: Partial<Wallet>) => Promise<void>;
   categories: Category[];
-  addCategory: (category: Omit<Category, 'id'>) => void;
+  addCategory: (category: { name: string; type: string; color?: string; icon?: string }) => Promise<void>;
   transactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  addTransaction: (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
   savingPlaces: SavingPlace[];
-  addSavingPlace: (savingPlace: Omit<SavingPlace, 'id'>) => void;
-  updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => void;
+  addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => Promise<void>;
+  updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
   credits: Credit[];
-  addCredit: (credit: Omit<Credit, 'id'>) => void;
+  addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
   budgetPlans: BudgetPlan[];
-  addBudgetPlan: (budgetPlan: Omit<BudgetPlan, 'id'>) => void;
-  updateBudgetPlan: (id: string, budgetPlan: Partial<BudgetPlan>) => void;
+  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; month: number; year: number }) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const defaultCategories: Category[] = [
-  { id: '1', name: 'Food & Dining', color: '#ef4444', icon: 'UtensilsCrossed' },
-  { id: '2', name: 'Transportation', color: '#3b82f6', icon: 'Car' },
-  { id: '3', name: 'Shopping', color: '#8b5cf6', icon: 'ShoppingBag' },
-  { id: '4', name: 'Entertainment', color: '#ec4899', icon: 'Tv' },
-  { id: '5', name: 'Bills & Utilities', color: '#f59e0b', icon: 'Receipt' },
-  { id: '6', name: 'Healthcare', color: '#10b981', icon: 'Heart' },
-  { id: '7', name: 'Salary', color: '#22c55e', icon: 'Banknote' },
-  { id: '8', name: 'Other', color: '#6b7280', icon: 'MoreHorizontal' },
-];
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [savingPlaces, setSavingPlaces] = useState<SavingPlace[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [budgetPlans, setBudgetPlans] = useState<BudgetPlan[]>([]);
 
-  const addWallet = (wallet: Omit<Wallet, 'id'>) => {
-    const newWallet = { ...wallet, id: Date.now().toString() };
-    setWallets([...wallets, newWallet]);
-  };
-
-  const updateWallet = (id: string, wallet: Partial<Wallet>) => {
-    setWallets(wallets.map(w => w.id === id ? { ...w, ...wallet } : w));
-  };
-
-  const addCategory = (category: Omit<Category, 'id'>) => {
-    const newCategory = { ...category, id: Date.now().toString() };
-    setCategories([...categories, newCategory]);
-  };
-
-  const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction = { ...transaction, id: Date.now().toString() };
-    setTransactions([...transactions, newTransaction]);
-    
-    // Update wallet balance
-    const wallet = wallets.find(w => w.id === transaction.walletId);
-    if (wallet) {
-      const balanceChange = transaction.type === 'income' ? transaction.amount : -transaction.amount;
-      updateWallet(wallet.id, { balance: wallet.balance + balanceChange });
+  const fetchAllData = useCallback(async () => {
+    try {
+      const [w, c, t, s, cr, b] = await Promise.all([
+        walletApi.getAll(),
+        categoryApi.getAll(),
+        transactionApi.getAll(),
+        savingApi.getAll(),
+        creditApi.getAll(),
+        budgetApi.getAll(),
+      ]);
+      setWallets(w);
+      setCategories(c);
+      setTransactions(t);
+      setSavingPlaces(s);
+      setCredits(cr);
+      setBudgetPlans(b);
+    } catch {
+      // User may not be authenticated
     }
+  }, []);
+
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const token = localStorage.getItem('mywallet_token');
+    if (token) {
+      authApi.getMe()
+        .then((userData) => {
+          setUser(userData);
+          return fetchAllData();
+        })
+        .catch(() => {
+          clearToken();
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [fetchAllData]);
+
+  const login = async (email: string, password: string) => {
+    const result = await authApi.login({ email, password });
+    setToken(result.token);
+    setUser(result.user);
+    await fetchAllData();
   };
 
-  const addSavingPlace = (savingPlace: Omit<SavingPlace, 'id'>) => {
-    const newSavingPlace = { ...savingPlace, id: Date.now().toString() };
-    setSavingPlaces([...savingPlaces, newSavingPlace]);
+  const register = async (email: string, password: string, name: string) => {
+    const result = await authApi.register({ email, password, name });
+    setToken(result.token);
+    setUser(result.user);
+    await fetchAllData();
   };
 
-  const updateSavingPlace = (id: string, savingPlace: Partial<SavingPlace>) => {
-    setSavingPlaces(savingPlaces.map(sp => sp.id === id ? { ...sp, ...savingPlace } : sp));
+  const logout = () => {
+    clearToken();
+    setUser(null);
+    setWallets([]);
+    setCategories([]);
+    setTransactions([]);
+    setSavingPlaces([]);
+    setCredits([]);
+    setBudgetPlans([]);
   };
 
-  const addCredit = (credit: Omit<Credit, 'id'>) => {
-    const newCredit = { ...credit, id: Date.now().toString() };
-    setCredits([...credits, newCredit]);
+  const addWallet = async (wallet: Omit<Wallet, 'id'>) => {
+    const created = await walletApi.create(wallet);
+    setWallets(prev => [...prev, created]);
   };
 
-  const addBudgetPlan = (budgetPlan: Omit<BudgetPlan, 'id'>) => {
-    const newBudgetPlan = { ...budgetPlan, id: Date.now().toString() };
-    setBudgetPlans([...budgetPlans, newBudgetPlan]);
+  const updateWallet = async (id: string, wallet: Partial<Wallet>) => {
+    const updated = await walletApi.update(id, wallet);
+    setWallets(prev => prev.map(w => w.id === id ? updated : w));
   };
 
-  const updateBudgetPlan = (id: string, budgetPlan: Partial<BudgetPlan>) => {
-    setBudgetPlans(budgetPlans.map(bp => bp.id === id ? { ...bp, ...budgetPlan } : bp));
+  const addCategory = async (category: { name: string; type: string; color?: string; icon?: string }) => {
+    const created = await categoryApi.create(category);
+    setCategories(prev => [...prev, created]);
+  };
+
+  const addTransaction = async (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => {
+    const created = await transactionApi.create(transaction);
+    setTransactions(prev => [...prev, created]);
+    // Refresh wallets to get updated balance
+    const updatedWallets = await walletApi.getAll();
+    setWallets(updatedWallets);
+  };
+
+  const addSavingPlace = async (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => {
+    const created = await savingApi.create(savingPlace);
+    setSavingPlaces(prev => [...prev, created]);
+  };
+
+  const updateSavingPlace = async (id: string, savingPlace: Partial<SavingPlace>) => {
+    const updated = await savingApi.update(id, savingPlace);
+    setSavingPlaces(prev => prev.map(sp => sp.id === id ? updated : sp));
+  };
+
+  const addCredit = async (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => {
+    const created = await creditApi.create(credit);
+    setCredits(prev => [...prev, created]);
+  };
+
+  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; month: number; year: number }) => {
+    const created = await budgetApi.create(budgetPlan);
+    setBudgetPlans(prev => [...prev, created]);
   };
 
   return (
     <AppContext.Provider
       value={{
         user,
-        setUser,
+        loading,
+        login,
+        register,
+        logout,
         wallets,
         addWallet,
         updateWallet,
@@ -168,7 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addCredit,
         budgetPlans,
         addBudgetPlan,
-        updateBudgetPlan,
+        refreshData: fetchAllData,
       }}
     >
       {children}

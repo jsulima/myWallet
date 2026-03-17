@@ -18,10 +18,10 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
-  const { user, setUser } = useApp();
+  const { user, logout } = useApp();
 
   const handleLogout = () => {
-    setUser(null);
+    logout();
     navigate('/');
   };
 

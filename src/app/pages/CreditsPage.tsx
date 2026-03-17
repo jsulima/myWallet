@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
@@ -14,55 +13,46 @@ import { toast } from 'sonner';
 export default function CreditsPage() {
   const { credits, addCredit } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     totalAmount: '',
     remainingAmount: '',
-    currency: 'USD' as 'USD' | 'UAH',
     interestRate: '',
     monthlyPayment: '',
     dueDate: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    addCredit({
-      name: formData.name,
-      totalAmount: parseFloat(formData.totalAmount),
-      remainingAmount: parseFloat(formData.remainingAmount),
-      currency: formData.currency,
-      interestRate: parseFloat(formData.interestRate),
-      monthlyPayment: parseFloat(formData.monthlyPayment),
-      dueDate: formData.dueDate,
-    });
+    setIsLoading(true);
 
-    toast.success('Credit added successfully!');
-    setIsOpen(false);
-    setFormData({
-      name: '',
-      totalAmount: '',
-      remainingAmount: '',
-      currency: 'USD',
-      interestRate: '',
-      monthlyPayment: '',
-      dueDate: '',
-    });
+    try {
+      await addCredit({
+        name: formData.name,
+        totalAmount: parseFloat(formData.totalAmount),
+        remainingAmount: parseFloat(formData.remainingAmount),
+        interestRate: parseFloat(formData.interestRate),
+        monthlyPayment: parseFloat(formData.monthlyPayment),
+        dueDate: formData.dueDate,
+      });
+
+      toast.success('Credit added successfully!');
+      setIsOpen(false);
+      setFormData({ name: '', totalAmount: '', remainingAmount: '', interestRate: '', monthlyPayment: '', dueDate: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add credit');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getTotalDebt = () => {
-    return credits.reduce((sum, credit) => {
-      // Convert to USD for total (simplified)
-      const amount = credit.currency === 'UAH' ? credit.remainingAmount / 40 : credit.remainingAmount;
-      return sum + amount;
-    }, 0);
+    return credits.reduce((sum, credit) => sum + (credit.remainingAmount ?? 0), 0);
   };
 
   const getTotalMonthlyPayment = () => {
-    return credits.reduce((sum, credit) => {
-      const amount = credit.currency === 'UAH' ? credit.monthlyPayment / 40 : credit.monthlyPayment;
-      return sum + amount;
-    }, 0);
+    return credits.reduce((sum, credit) => sum + (credit.monthlyPayment ?? 0), 0);
   };
 
   return (
@@ -88,104 +78,48 @@ export default function CreditsPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="name">Credit Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="e.g., Car Loan, Credit Card"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select
-                    value={formData.currency}
-                    onValueChange={(value: 'USD' | 'UAH') => setFormData({ ...formData, currency: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                      <SelectItem value="UAH">UAH - Ukrainian Hryvnia (₴)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input id="name" type="text" placeholder="e.g., Car Loan"
+                    value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
                 </div>
 
                 <div>
                   <Label htmlFor="totalAmount">Total Amount</Label>
-                  <Input
-                    id="totalAmount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.totalAmount}
-                    onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-                    required
-                  />
+                  <Input id="totalAmount" type="number" step="0.01" placeholder="0.00"
+                    value={formData.totalAmount} onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })} required />
                 </div>
 
                 <div>
                   <Label htmlFor="remainingAmount">Remaining Amount</Label>
-                  <Input
-                    id="remainingAmount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.remainingAmount}
-                    onChange={(e) => setFormData({ ...formData, remainingAmount: e.target.value })}
-                    required
-                  />
+                  <Input id="remainingAmount" type="number" step="0.01" placeholder="0.00"
+                    value={formData.remainingAmount} onChange={(e) => setFormData({ ...formData, remainingAmount: e.target.value })} required />
                 </div>
 
                 <div>
                   <Label htmlFor="interestRate">Interest Rate (%)</Label>
-                  <Input
-                    id="interestRate"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.interestRate}
-                    onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                    required
-                  />
+                  <Input id="interestRate" type="number" step="0.01" placeholder="0.00"
+                    value={formData.interestRate} onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })} required />
                 </div>
 
                 <div>
                   <Label htmlFor="monthlyPayment">Monthly Payment</Label>
-                  <Input
-                    id="monthlyPayment"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.monthlyPayment}
-                    onChange={(e) => setFormData({ ...formData, monthlyPayment: e.target.value })}
-                    required
-                  />
+                  <Input id="monthlyPayment" type="number" step="0.01" placeholder="0.00"
+                    value={formData.monthlyPayment} onChange={(e) => setFormData({ ...formData, monthlyPayment: e.target.value })} required />
                 </div>
 
                 <div>
                   <Label htmlFor="dueDate">Next Payment Due</Label>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    required
-                  />
+                  <Input id="dueDate" type="date"
+                    value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} required />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  Add Credit
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Adding...' : 'Add Credit'}
                 </Button>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Summary Cards */}
         {credits.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -212,11 +146,10 @@ export default function CreditsPage() {
           </div>
         )}
 
-        {/* Credits List */}
         <div className="grid gap-6 md:grid-cols-2">
           {credits.map((credit) => {
-            const paidPercentage = ((credit.totalAmount - credit.remainingAmount) / credit.totalAmount) * 100;
-            const isOverdue = new Date(credit.dueDate) < new Date();
+            const paidPercentage = ((credit.totalAmount - (credit.remainingAmount ?? 0)) / credit.totalAmount) * 100;
+            const isOverdue = credit.dueDate ? new Date(credit.dueDate) < new Date() : false;
             
             return (
               <Card key={credit.id} className={isOverdue ? 'border-red-300' : ''}>
@@ -254,14 +187,12 @@ export default function CreditsPage() {
                       <div>
                         <p className="text-sm text-gray-600">Remaining</p>
                         <p className="text-lg font-bold text-red-600">
-                          {credit.currency === 'USD' ? '$' : '₴'}{credit.remainingAmount.toFixed(2)}
+                          ${(credit.remainingAmount ?? 0).toFixed(2)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Total</p>
-                        <p className="text-lg font-bold">
-                          {credit.currency === 'USD' ? '$' : '₴'}{credit.totalAmount.toFixed(2)}
-                        </p>
+                        <p className="text-lg font-bold">${credit.totalAmount.toFixed(2)}</p>
                       </div>
                     </div>
 
@@ -269,16 +200,16 @@ export default function CreditsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Monthly Payment</p>
-                          <p className="font-semibold">
-                            {credit.currency === 'USD' ? '$' : '₴'}{credit.monthlyPayment.toFixed(2)}
-                          </p>
+                          <p className="font-semibold">${(credit.monthlyPayment ?? 0).toFixed(2)}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">Next Due</p>
-                          <p className={`font-semibold ${isOverdue ? 'text-red-600' : ''}`}>
-                            {new Date(credit.dueDate).toLocaleDateString()}
-                          </p>
-                        </div>
+                        {credit.dueDate && (
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600">Next Due</p>
+                            <p className={`font-semibold ${isOverdue ? 'text-red-600' : ''}`}>
+                              {new Date(credit.dueDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

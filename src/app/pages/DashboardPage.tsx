@@ -14,9 +14,11 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
+import { useNavigate } from 'react-router';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, credits, categories } = useApp();
+  const { user, wallets, transactions, savingPlaces, credits, categories, logout } = useApp();
+  const navigate = useNavigate();
 
   const totalBalance = wallets.reduce((sum, wallet) => {
     // Convert everything to USD for display (simplified conversion)
@@ -32,11 +34,11 @@ export default function DashboardPage() {
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
 
   const monthlyIncome = transactions
-    .filter(t => t.type === 'income' && new Date(t.date).getMonth() === new Date().getMonth())
+    .filter(t => t.type === 'INCOME' && new Date(t.date).getMonth() === new Date().getMonth())
     .reduce((sum, t) => sum + t.amount, 0);
 
   const monthlyExpenses = transactions
-    .filter(t => t.type === 'expense' && new Date(t.date).getMonth() === new Date().getMonth())
+    .filter(t => t.type === 'EXPENSE' && new Date(t.date).getMonth() === new Date().getMonth())
     .reduce((sum, t) => sum + t.amount, 0);
 
   return (
@@ -191,7 +193,7 @@ export default function DashboardPage() {
                     return (
                       <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
-                          {transaction.type === 'income' ? (
+                          {transaction.type === 'INCOME' ? (
                             <ArrowUpRight className="h-5 w-5 text-green-600" />
                           ) : (
                             <ArrowDownRight className="h-5 w-5 text-red-600" />
@@ -202,8 +204,8 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className={`font-bold ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                            {transaction.type === 'income' ? '+' : '-'}
+                          <p className={`font-bold ${transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
+                            {transaction.type === 'INCOME' ? '+' : '-'}
                             {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
                           </p>
                           <p className="text-xs text-gray-600">

@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { setUser } = useApp();
+  const { register } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -17,7 +18,7 @@ export default function SignupPage() {
     confirmPassword: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
@@ -30,16 +31,17 @@ export default function SignupPage() {
       return;
     }
 
-    // Create user
-    const newUser = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-    };
+    setIsLoading(true);
 
-    setUser(newUser);
-    toast.success('Account created successfully!');
-    navigate('/add-wallet');
+    try {
+      await register(formData.email, formData.password, formData.name);
+      toast.success('Account created successfully!');
+      navigate('/add-wallet');
+    } catch (error: any) {
+      toast.error(error.message || 'Registration failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -107,8 +109,8 @@ export default function SignupPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            Create Account
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </Button>
         </form>
 

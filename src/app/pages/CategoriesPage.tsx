@@ -5,6 +5,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
@@ -17,26 +18,37 @@ const COLORS = [
 export default function CategoriesPage() {
   const { categories, addCategory, transactions } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     color: COLORS[0],
+    type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    addCategory({
-      name: formData.name,
-      color: formData.color,
-      icon: 'Tag',
-    });
+    setIsLoading(true);
 
-    toast.success('Category created successfully!');
-    setIsOpen(false);
-    setFormData({
-      name: '',
-      color: COLORS[0],
-    });
+    try {
+      await addCategory({
+        name: formData.name,
+        color: formData.color,
+        type: formData.type,
+        icon: 'Tag',
+      });
+
+      toast.success('Category created successfully!');
+      setIsOpen(false);
+      setFormData({
+        name: '',
+        color: COLORS[0],
+        type: 'EXPENSE',
+      });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create category');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getCategoryTransactionCount = (categoryId: string) => {
@@ -77,6 +89,22 @@ export default function CategoriesPage() {
                 </div>
 
                 <div>
+                  <Label>Type</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value: 'INCOME' | 'EXPENSE') => setFormData({ ...formData, type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EXPENSE">Expense</SelectItem>
+                      <SelectItem value="INCOME">Income</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label>Color</Label>
                   <div className="flex gap-2 mt-2">
                     {COLORS.map((color) => (
@@ -93,8 +121,8 @@ export default function CategoriesPage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full">
-                  Create Category
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Creating...' : 'Create Category'}
                 </Button>
               </form>
             </DialogContent>
@@ -108,9 +136,9 @@ export default function CategoriesPage() {
                 <div className="flex items-center gap-3">
                   <div
                     className="p-3 rounded-full"
-                    style={{ backgroundColor: category.color + '20' }}
+                    style={{ backgroundColor: (category.color || '#6b7280') + '20' }}
                   >
-                    <Tag className="h-6 w-6" style={{ color: category.color }} />
+                    <Tag className="h-6 w-6" style={{ color: category.color || '#6b7280' }} />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold">{category.name}</h3>

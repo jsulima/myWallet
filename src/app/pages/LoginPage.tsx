@@ -9,25 +9,26 @@ import { toast } from 'sonner';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { setUser } = useApp();
+  const { login } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Mock login - in real app, this would validate against backend
-    const mockUser = {
-      id: '1',
-      name: 'Demo User',
-      email: formData.email,
-    };
+    setIsLoading(true);
 
-    setUser(mockUser);
-    toast.success('Welcome back!');
-    navigate('/dashboard');
+    try {
+      await login(formData.email, formData.password);
+      toast.success('Welcome back!');
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -69,8 +70,8 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            Sign In
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
 

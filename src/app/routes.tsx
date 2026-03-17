@@ -9,6 +9,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import SavingsPage from './pages/SavingsPage';
 import CreditsPage from './pages/CreditsPage';
 import BudgetPage from './pages/BudgetPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
@@ -25,30 +26,30 @@ export const router = createBrowserRouter([
   },
   {
     path: '/add-wallet',
-    Component: AddWalletPage,
+    element: <ProtectedRoute><AddWalletPage /></ProtectedRoute>,
   },
   {
     path: '/dashboard',
-    Component: DashboardPage,
+    element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
   },
   {
     path: '/transactions',
-    Component: TransactionsPage,
+    element: <ProtectedRoute><TransactionsPage /></ProtectedRoute>,
   },
   {
     path: '/categories',
-    Component: CategoriesPage,
+    element: <ProtectedRoute><CategoriesPage /></ProtectedRoute>,
   },
   {
     path: '/savings',
-    Component: SavingsPage,
+    element: <ProtectedRoute><SavingsPage /></ProtectedRoute>,
   },
   {
     path: '/credits',
-    Component: CreditsPage,
+    element: <ProtectedRoute><CreditsPage /></ProtectedRoute>,
   },
   {
     path: '/budget',
-    Component: BudgetPage,
+    element: <ProtectedRoute><BudgetPage /></ProtectedRoute>,
   },
 ]);
