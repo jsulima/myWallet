@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { 
   Wallet, 
@@ -14,16 +15,28 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
-import { useNavigate } from 'react-router';
+import { currencyApi } from '../services/api';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, credits, categories, logout } = useApp();
-  const navigate = useNavigate();
+  const { user, wallets, transactions, savingPlaces, categories } = useApp();
+  const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
+
+  useEffect(() => {
+    currencyApi.getRates().then(setRates).catch(console.error);
+  }, []);
+
+  const convertToUSD = (amount: number, currency: string) => {
+    if (currency === 'USD') return amount;
+    const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
+    if (rateEntry) return amount * rateEntry.rate;
+    
+    // Fallback if rates not loaded yet or not found
+    if (currency === 'UAH') return amount / 40;
+    return amount;
+  };
 
   const totalBalance = wallets.reduce((sum, wallet) => {
-    // Convert everything to USD for display (simplified conversion)
-    const balance = wallet.currency === 'UAH' ? wallet.balance / 40 : wallet.balance;
-    return sum + balance;
+    return sum + convertToUSD(wallet.balance, wallet.currency);
   }, 0);
 
   const recentTransactions = [...transactions]
@@ -33,13 +46,25 @@ export default function DashboardPage() {
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
 
-  const monthlyIncome = transactions
-    .filter(t => t.type === 'INCOME' && new Date(t.date).getMonth() === new Date().getMonth())
-    .reduce((sum, t) => sum + t.amount, 0);
+  const currentMonthTransactions = transactions.filter(t => {
+    const d = new Date(t.date);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
 
-  const monthlyExpenses = transactions
-    .filter(t => t.type === 'EXPENSE' && new Date(t.date).getMonth() === new Date().getMonth())
-    .reduce((sum, t) => sum + t.amount, 0);
+  const monthlyIncome = currentMonthTransactions
+    .filter(t => t.type === 'INCOME')
+    .reduce((sum, t) => {
+      const wallet = getWalletById(t.walletId);
+      return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
+    }, 0);
+
+  const monthlyExpenses = currentMonthTransactions
+    .filter(t => t.type === 'EXPENSE')
+    .reduce((sum, t) => {
+      const wallet = getWalletById(t.walletId);
+      return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
+    }, 0);
 
   return (
     <Layout>

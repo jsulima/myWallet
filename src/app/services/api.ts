@@ -158,3 +158,8 @@ export const transferApi = {
   }) =>
     request<any>('/transfers', { method: 'POST', body: JSON.stringify(data) }),
 };
+
+// Currency
+export const currencyApi = {
+  getRates: () => request<{ from: string; to: string; rate: number }[]>('/currency/rates'),
+};
