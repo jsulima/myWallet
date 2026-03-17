@@ -1,0 +1,254 @@
+import { useState } from 'react';
+import { Plus, ArrowUpRight, ArrowDownRight, Filter } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { useApp } from '../context/AppContext';
+import Layout from '../components/Layout';
+import { toast } from 'sonner';
+
+export default function TransactionsPage() {
+  const { transactions, wallets, categories, addTransaction } = useApp();
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    walletId: '',
+    categoryId: '',
+    type: 'expense' as 'income' | 'expense',
+    amount: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.walletId || !formData.categoryId) {
+      toast.error('Please select a wallet and category');
+      return;
+    }
+
+    addTransaction({
+      walletId: formData.walletId,
+      categoryId: formData.categoryId,
+      type: formData.type,
+      amount: parseFloat(formData.amount),
+      description: formData.description,
+      date: formData.date,
+    });
+
+    toast.success('Transaction added successfully!');
+    setIsOpen(false);
+    setFormData({
+      walletId: '',
+      categoryId: '',
+      type: 'expense',
+      amount: '',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const sortedTransactions = [...transactions].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const incomeTransactions = sortedTransactions.filter(t => t.type === 'income');
+  const expenseTransactions = sortedTransactions.filter(t => t.type === 'expense');
+
+  const getCategoryById = (id: string) => categories.find(c => c.id === id);
+  const getWalletById = (id: string) => wallets.find(w => w.id === id);
+
+  const TransactionList = ({ items }: { items: typeof transactions }) => (
+    <div className="space-y-3">
+      {items.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No transactions yet</p>
+        </div>
+      ) : (
+        items.map((transaction) => {
+          const category = getCategoryById(transaction.categoryId);
+          const wallet = getWalletById(transaction.walletId);
+          return (
+            <div
+              key={transaction.id}
+              className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200"
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  className={`p-2 rounded-full ${
+                    transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                  }`}
+                >
+                  {transaction.type === 'income' ? (
+                    <ArrowUpRight className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <ArrowDownRight className="h-5 w-5 text-red-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium">{category?.name}</p>
+                  <p className="text-sm text-gray-600">{transaction.description}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {wallet?.name} • {new Date(transaction.date).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p
+                  className={`text-lg font-bold ${
+                    transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {transaction.type === 'income' ? '+' : '-'}
+                  {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Transactions</h1>
+            <p className="text-gray-600">Track your income and expenses</p>
+          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Transaction
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Transaction</DialogTitle>
+                <DialogDescription>
+                  Add a new transaction to your wallet.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label>Type</Label>
+                  <Tabs
+                    value={formData.type}
+                    onValueChange={(value: 'income' | 'expense') =>
+                      setFormData({ ...formData, type: value })
+                    }
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="expense">Expense</TabsTrigger>
+                      <TabsTrigger value="income">Income</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                <div>
+                  <Label htmlFor="wallet">Wallet</Label>
+                  <Select value={formData.walletId} onValueChange={(value) => setFormData({ ...formData, walletId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select wallet" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {wallets.map((wallet) => (
+                        <SelectItem key={wallet.id} value={wallet.id}>
+                          {wallet.name} ({wallet.currency})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    type="text"
+                    placeholder="e.g., Grocery shopping"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <Button type="submit" className="w-full">
+                  Add Transaction
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <Tabs defaultValue="all">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="income">Income</TabsTrigger>
+                <TabsTrigger value="expense">Expenses</TabsTrigger>
+              </TabsList>
+              <TabsContent value="all">
+                <TransactionList items={sortedTransactions} />
+              </TabsContent>
+              <TabsContent value="income">
+                <TransactionList items={incomeTransactions} />
+              </TabsContent>
+              <TabsContent value="expense">
+                <TransactionList items={expenseTransactions} />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+}
