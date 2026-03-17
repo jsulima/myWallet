@@ -33,7 +33,7 @@ export default function SavingsPage() {
         name: formData.name,
         targetAmount: parseFloat(formData.targetAmount),
         currentAmount: parseFloat(formData.currentAmount) || 0,
-        deadline: formData.deadline || undefined,
+        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : undefined,
       });
 
       toast.success('Savings goal created successfully!');
