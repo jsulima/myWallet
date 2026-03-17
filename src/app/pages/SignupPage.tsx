@@ -60,6 +60,7 @@ export default function SignupPage() {
             <Input
               id="name"
               type="text"
+              autoComplete="name"
               placeholder="John Doe"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -72,6 +73,7 @@ export default function SignupPage() {
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="john@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -84,6 +86,7 @@ export default function SignupPage() {
             <Input
               id="password"
               type="password"
+              autoComplete="new-password"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -96,6 +99,7 @@ export default function SignupPage() {
             <Input
               id="confirmPassword"
               type="password"
+              autoComplete="new-password"
               placeholder="••••••••"
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
