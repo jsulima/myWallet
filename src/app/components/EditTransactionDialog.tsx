@@ -39,6 +39,21 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
     }
   }, [open, transaction]);
 
+  useEffect(() => {
+    if (categories.length === 0) return;
+    
+    const currentCategory = categories.find(c => c.id === formData.categoryId);
+    if (!currentCategory || currentCategory.type !== formData.type) {
+      const firstAvailableCategory = categories.find(c => c.type === formData.type);
+      if (firstAvailableCategory && firstAvailableCategory.id !== formData.categoryId) {
+        setFormData(prev => ({ 
+          ...prev, 
+          categoryId: firstAvailableCategory.id 
+        }));
+      }
+    }
+  }, [formData.type, categories, formData.categoryId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -115,11 +130,13 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                {categories
+                  .filter((category) => category.type === formData.type)
+                  .map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
