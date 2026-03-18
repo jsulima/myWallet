@@ -252,10 +252,10 @@ export default function BudgetPage() {
           </div>
         )}
 
-        {/* Budget Plans */}
-        <div className="space-y-4">
+        {/* Budget Plans Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {currentMonthBudgets.length === 0 ? (
-            <Card>
+            <Card className="col-span-full">
               <CardContent className="py-12 text-center">
                 <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600 mb-4">No budget plans for this month</p>
@@ -269,41 +269,43 @@ export default function BudgetPage() {
               const isOverBudget = budget.spentAmount > budget.limit;
               
               return (
-                <Card key={budget.id}>
-                  <CardContent className="pt-6">
+                <Card key={budget.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="pt-4 pb-4 px-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 overflow-hidden">
                           <div
-                            className="w-3 h-3 rounded-full"
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                             style={{ backgroundColor: category?.color || '#6b7280' }}
                           />
-                          <h3 className="font-semibold">{category?.name}</h3>
+                          <h3 className="font-semibold text-sm truncate">{category?.name}</h3>
                         </div>
                         {isOverBudget && (
-                          <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded">
-                            Over Budget!
+                          <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                            Over
                           </span>
                         )}
                       </div>
                       
-                      <Progress 
-                        value={Math.min(percentage, 100)} 
-                        className="h-2"
-                      />
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <span className={isOverBudget ? 'text-red-600 font-semibold' : 'text-gray-600'}>
-                          ${budget.spentAmount.toFixed(2)} spent
-                        </span>
-                        <span className="text-gray-600">
-                          of ${budget.limit.toFixed(2)} planned ({percentage.toFixed(0)}%)
-                        </span>
+                      <div className="space-y-1.5">
+                        <Progress 
+                          value={Math.min(percentage, 100)} 
+                          className={`h-1.5 ${isOverBudget ? 'bg-red-100' : ''}`}
+                        />
+                        
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={isOverBudget ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                            ${budget.spentAmount.toFixed(0)} spent
+                          </span>
+                          <span className="text-gray-400">
+                            of ${budget.limit.toFixed(0)}
+                          </span>
+                        </div>
                       </div>
                       
-                      <div className="text-sm text-gray-600">
-                        Remaining: 
-                        <span className={`ml-1 font-semibold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-50 mt-1">
+                        <span className="text-[11px] text-gray-500">Remaining</span>
+                        <span className={`text-xs font-bold ${isOverBudget ? 'text-red-600' : 'text-green-600'}`}>
                           ${(budget.limit - budget.spentAmount).toFixed(2)}
                         </span>
                       </div>
