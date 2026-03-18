@@ -65,8 +65,9 @@ export interface BudgetPlan {
   id: string;
   categoryId: string;
   limit: number;
-  month: number;
-  year: number;
+  startDate: string;
+  endDate: string;
+  status: 'DRAFT' | 'ACTIVE' | 'FINISHED';
   category?: Category;
 }
 
@@ -119,7 +120,9 @@ interface AppContextType {
   credits: Credit[];
   addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
   budgetPlans: BudgetPlan[];
-  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; month: number; year: number }) => Promise<void>;
+  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) => Promise<void>;
+  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string }) => Promise<void>;
+  deleteBudgetPlan: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -296,9 +299,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCredits(prev => [...prev, created]);
   };
 
-  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; month: number; year: number }) => {
+  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) => {
     const created = await budgetApi.create(budgetPlan);
     setBudgetPlans(prev => [...prev, created]);
+  };
+
+  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string }) => {
+    const updated = await budgetApi.update(id, budgetPlan);
+    setBudgetPlans(prev => prev.map(bp => bp.id === id ? updated : bp));
+  };
+
+  const deleteBudgetPlan = async (id: string) => {
+    await budgetApi.delete(id);
+    setBudgetPlans(prev => prev.filter(bp => bp.id !== id));
   };
 
   return (
@@ -326,6 +339,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addCredit,
         budgetPlans,
         addBudgetPlan,
+        updateBudgetPlan,
+        deleteBudgetPlan,
         refreshData: fetchAllData,
       }}
     >
