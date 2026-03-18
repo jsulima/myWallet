@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, ArrowUpRight, ArrowDownRight, Trash2, Edit2 } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, Trash2, Edit2, ArrowRight, Repeat } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -32,9 +32,11 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     walletId: '',
+    targetWalletId: '',
     categoryId: '',
-    type: 'EXPENSE' as 'INCOME' | 'EXPENSE',
+    type: 'EXPENSE' as 'INCOME' | 'EXPENSE' | 'TRANSFER',
     amount: '',
+    targetAmount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
   });
@@ -51,9 +53,11 @@ export default function TransactionsPage() {
     try {
       await addTransaction({
         walletId: formData.walletId,
+        targetWalletId: formData.type === 'TRANSFER' ? formData.targetWalletId : undefined,
         categoryId: formData.categoryId,
         type: formData.type,
         amount: parseFloat(formData.amount),
+        targetAmount: formData.type === 'TRANSFER' ? parseFloat(formData.targetAmount) : undefined,
         description: formData.description,
         date: new Date(formData.date).toISOString(),
       });
@@ -62,9 +66,11 @@ export default function TransactionsPage() {
       setIsOpen(false);
       setFormData({
         walletId: '',
+        targetWalletId: '',
         categoryId: '',
         type: 'EXPENSE',
         amount: '',
+        targetAmount: '',
         description: '',
         date: new Date().toISOString().split('T')[0],
       });
@@ -99,6 +105,7 @@ export default function TransactionsPage() {
 
   const incomeTransactions = sortedTransactions.filter(t => t.type === 'INCOME');
   const expenseTransactions = sortedTransactions.filter(t => t.type === 'EXPENSE');
+  const transferTransactions = sortedTransactions.filter(t => t.type === 'TRANSFER');
 
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
@@ -113,6 +120,8 @@ export default function TransactionsPage() {
         items.map((transaction) => {
           const category = getCategoryById(transaction.categoryId);
           const wallet = getWalletById(transaction.walletId);
+          const targetWallet = transaction.targetWalletId ? getWalletById(transaction.targetWalletId) : null;
+          
           return (
             <div
               key={transaction.id}
@@ -121,33 +130,64 @@ export default function TransactionsPage() {
               <div className="flex items-center gap-4">
                 <div
                   className={`p-2 rounded-full ${
-                    transaction.type === 'INCOME' ? 'bg-green-100' : 'bg-red-100'
+                    transaction.type === 'INCOME' ? 'bg-green-100' : 
+                    transaction.type === 'EXPENSE' ? 'bg-red-100' : 'bg-blue-100'
                   }`}
                 >
                   {transaction.type === 'INCOME' ? (
                     <ArrowUpRight className="h-5 w-5 text-green-600" />
-                  ) : (
+                  ) : transaction.type === 'EXPENSE' ? (
                     <ArrowDownRight className="h-5 w-5 text-red-600" />
+                  ) : (
+                    <Repeat className="h-5 w-5 text-blue-600" />
                   )}
                 </div>
                 <div>
-                  <p className="font-medium">{category?.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{category?.name}</p>
+                    {transaction.type === 'TRANSFER' && (
+                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100 font-medium">
+                        Transfer
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600">{transaction.description}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {wallet?.name} • {new Date(transaction.date).toLocaleDateString()}
+                    {transaction.type === 'TRANSFER' ? (
+                      <span className="flex items-center gap-1">
+                        {wallet?.name || 'Unknown'} 
+                        <ArrowRight className="h-3 w-3 inline" /> 
+                        {targetWallet?.name || 'Unknown'}
+                      </span>
+                    ) : (
+                      wallet?.name
+                    )} • {new Date(transaction.date).toLocaleDateString()}
                   </p>
                 </div>
               </div>
               <div className="text-right flex items-center gap-4">
                 <div>
-                  <p
-                    className={`text-lg font-bold ${
-                      transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {transaction.type === 'INCOME' ? '+' : '-'}
-                    {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
-                  </p>
+                  {transaction.type === 'TRANSFER' ? (
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-700">
+                        {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                      </p>
+                      {targetWallet && targetWallet.currency !== wallet?.currency && transaction.targetAmount && (
+                        <p className="text-xs text-gray-500">
+                          {targetWallet.currency === 'USD' ? '$' : '₴'}{transaction.targetAmount.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p
+                      className={`text-lg font-bold ${
+                        transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {transaction.type === 'INCOME' ? '+' : '-'}
+                      {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <Button
@@ -236,12 +276,13 @@ export default function TransactionsPage() {
                   <Tabs
                     value={formData.type}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, type: value as 'INCOME' | 'EXPENSE' })
+                      setFormData({ ...formData, type: value as any })
                     }
                   >
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="EXPENSE">Expense</TabsTrigger>
                       <TabsTrigger value="INCOME">Income</TabsTrigger>
+                      <TabsTrigger value="TRANSFER">Transfer</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -270,7 +311,7 @@ export default function TransactionsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {categories
-                        .filter((category) => category.type === formData.type)
+                        .filter((category) => formData.type === 'TRANSFER' || category.type === formData.type)
                         .map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
@@ -279,6 +320,44 @@ export default function TransactionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {formData.type === 'TRANSFER' && (
+                  <>
+                    <div>
+                      <Label htmlFor="target-wallet">Target Wallet</Label>
+                      <Select 
+                        value={formData.targetWalletId} 
+                        onValueChange={(value) => setFormData({ ...formData, targetWalletId: value })}
+                      >
+                        <SelectTrigger id="target-wallet">
+                          <SelectValue placeholder="Select target wallet" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {wallets
+                            .filter(w => w.id !== formData.walletId)
+                            .map((wallet) => (
+                              <SelectItem key={wallet.id} value={wallet.id}>
+                                {wallet.name} ({wallet.currency})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="target-amount">Target Amount</Label>
+                      <Input
+                        id="target-amount"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={formData.targetAmount}
+                        onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <Label htmlFor="amount">Amount</Label>
@@ -336,10 +415,11 @@ export default function TransactionsPage() {
         <Card>
           <CardContent className="pt-6">
             <Tabs defaultValue="all">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsList className="grid w-full grid-cols-4 mb-6">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="income">Income</TabsTrigger>
                 <TabsTrigger value="expense">Expenses</TabsTrigger>
+                <TabsTrigger value="transfer">Transfers</TabsTrigger>
               </TabsList>
               <TabsContent value="all">
                 <TransactionList items={sortedTransactions} />
@@ -349,6 +429,9 @@ export default function TransactionsPage() {
               </TabsContent>
               <TabsContent value="expense">
                 <TransactionList items={expenseTransactions} />
+              </TabsContent>
+              <TabsContent value="transfer">
+                <TransactionList items={transferTransactions} />
               </TabsContent>
             </Tabs>
           </CardContent>

@@ -97,6 +97,8 @@ export const transactionApi = {
     categoryId: string;
     amount: number;
     type: string;
+    targetWalletId?: string;
+    targetAmount?: number;
     date?: string;
     description?: string;
   }) =>
@@ -106,6 +108,8 @@ export const transactionApi = {
     categoryId: string;
     amount: number;
     type: string;
+    targetWalletId?: string;
+    targetAmount?: number;
     date?: string;
     description?: string;
   }) =>

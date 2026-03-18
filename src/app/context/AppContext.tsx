@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
   authApi, walletApi, categoryApi, transactionApi,
-  budgetApi, savingApi, creditApi, transferApi,
+  budgetApi, savingApi, creditApi,
   setToken, clearToken,
 } from '../services/api';
 
@@ -29,14 +29,17 @@ export interface Category {
 export interface Transaction {
   id: string;
   walletId: string;
+  targetWalletId?: string;
   categoryId: string;
-  transferId?: string; // Link to transfer if applicable
-  type: 'INCOME' | 'EXPENSE';
+  transferId?: string;
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   amount: number;
+  targetAmount?: number;
   description: string;
   date: string;
   category?: Category;
   wallet?: Wallet;
+  targetWallet?: Wallet;
 }
 
 export interface SavingPlace {
@@ -79,8 +82,26 @@ interface AppContextType {
   categories: Category[];
   addCategory: (category: { name: string; type: string; color?: string; icon?: string }) => Promise<void>;
   transactions: Transaction[];
-  addTransaction: (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
-  updateTransaction: (id: string, transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
+  addTransaction: (transaction: { 
+    walletId: string; 
+    categoryId: string; 
+    type: string; 
+    amount: number; 
+    description?: string; 
+    date?: string;
+    targetWalletId?: string;
+    targetAmount?: number;
+  }) => Promise<void>;
+  updateTransaction: (id: string, transaction: { 
+    walletId: string; 
+    categoryId: string; 
+    type: string; 
+    amount: number; 
+    description?: string; 
+    date?: string;
+    targetWalletId?: string;
+    targetAmount?: number;
+  }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   transferMoney: (data: {
     sourceWalletId: string;
@@ -193,15 +214,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCategories(prev => [...prev, created]);
   };
 
-  const addTransaction = async (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => {
+  const addTransaction = async (transaction: { 
+    walletId: string; 
+    categoryId: string; 
+    type: string; 
+    amount: number; 
+    description?: string; 
+    date?: string;
+    targetWalletId?: string;
+    targetAmount?: number;
+  }) => {
     const created = await transactionApi.create(transaction);
-    setTransactions(prev => [...prev, created]);
+    setTransactions(prev => [created, ...prev]);
     // Refresh wallets to get updated balance
     const updatedWallets = await walletApi.getAll();
     setWallets(updatedWallets);
   };
 
-  const updateTransaction = async (id: string, transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => {
+  const updateTransaction = async (id: string, transaction: { 
+    walletId: string; 
+    categoryId: string; 
+    type: string; 
+    amount: number; 
+    description?: string; 
+    date?: string;
+    targetWalletId?: string;
+    targetAmount?: number;
+  }) => {
     const updated = await transactionApi.update(id, transaction);
     setTransactions(prev => prev.map(t => t.id === id ? updated : t));
     // Refresh wallets to get updated balance
@@ -227,8 +266,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     description?: string;
     date?: string;
   }) => {
-    await transferApi.create(data);
-    // Refresh all data to get new transactions and updated balances
+    // Convert to unified transaction
+    await transactionApi.create({
+      walletId: data.sourceWalletId,
+      targetWalletId: data.targetWalletId,
+      amount: data.sourceAmount,
+      targetAmount: data.targetAmount,
+      categoryId: data.categoryId,
+      type: 'TRANSFER',
+      description: data.description,
+      date: data.date,
+    });
+    // Refresh all data
     await fetchAllData();
   };
 

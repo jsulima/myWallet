@@ -19,9 +19,11 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     walletId: transaction.walletId,
+    targetWalletId: transaction.targetWalletId || '',
     categoryId: transaction.categoryId,
     type: transaction.type,
     amount: transaction.amount.toString(),
+    targetAmount: transaction.targetAmount?.toString() || '',
     description: transaction.description,
     date: new Date(transaction.date).toISOString().split('T')[0],
   });
@@ -30,9 +32,11 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
     if (open) {
       setFormData({
         walletId: transaction.walletId,
+        targetWalletId: transaction.targetWalletId || '',
         categoryId: transaction.categoryId,
         type: transaction.type,
         amount: transaction.amount.toString(),
+        targetAmount: transaction.targetAmount?.toString() || '',
         description: transaction.description,
         date: new Date(transaction.date).toISOString().split('T')[0],
       });
@@ -66,9 +70,11 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
     try {
       await updateTransaction(transaction.id, {
         walletId: formData.walletId,
+        targetWalletId: formData.type === 'TRANSFER' ? formData.targetWalletId : undefined,
         categoryId: formData.categoryId,
         type: formData.type,
         amount: parseFloat(formData.amount),
+        targetAmount: formData.type === 'TRANSFER' ? parseFloat(formData.targetAmount) : undefined,
         description: formData.description,
         date: new Date(formData.date).toISOString(),
       });
@@ -97,12 +103,13 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
             <Tabs
               value={formData.type}
               onValueChange={(value) =>
-                setFormData({ ...formData, type: value as 'INCOME' | 'EXPENSE' })
+                setFormData({ ...formData, type: value as any })
               }
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="EXPENSE">Expense</TabsTrigger>
                 <TabsTrigger value="INCOME">Income</TabsTrigger>
+                <TabsTrigger value="TRANSFER">Transfer</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -131,7 +138,7 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
               </SelectTrigger>
               <SelectContent>
                 {categories
-                  .filter((category) => category.type === formData.type)
+                  .filter((category) => formData.type === 'TRANSFER' || category.type === formData.type)
                   .map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
@@ -140,6 +147,44 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
               </SelectContent>
             </Select>
           </div>
+
+          {formData.type === 'TRANSFER' && (
+            <>
+              <div>
+                <Label htmlFor="edit-target-wallet">Target Wallet</Label>
+                <Select 
+                  value={formData.targetWalletId} 
+                  onValueChange={(value) => setFormData({ ...formData, targetWalletId: value })}
+                >
+                  <SelectTrigger id="edit-target-wallet">
+                    <SelectValue placeholder="Select target wallet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets
+                      .filter(w => w.id !== formData.walletId)
+                      .map((wallet) => (
+                        <SelectItem key={wallet.id} value={wallet.id}>
+                          {wallet.name} ({wallet.currency})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-target-amount">Target Amount</Label>
+                <Input
+                  id="edit-target-amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.targetAmount}
+                  onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })}
+                  required
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <Label htmlFor="edit-amount">Amount</Label>
