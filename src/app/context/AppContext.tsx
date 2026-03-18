@@ -30,6 +30,7 @@ export interface Transaction {
   id: string;
   walletId: string;
   categoryId: string;
+  transferId?: string; // Link to transfer if applicable
   type: 'INCOME' | 'EXPENSE';
   amount: number;
   description: string;

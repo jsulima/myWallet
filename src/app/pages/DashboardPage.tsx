@@ -9,8 +9,19 @@ import {
   Calendar,
   Plus,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  BarChart3
 } from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Cell
+} from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
@@ -18,7 +29,7 @@ import Layout from '../components/Layout';
 import { currencyApi } from '../services/api';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, categories } = useApp();
+  const { user, wallets, transactions, savingPlaces, categories, budgetPlans } = useApp();
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
 
   useEffect(() => {
@@ -53,18 +64,44 @@ export default function DashboardPage() {
   });
 
   const monthlyIncome = currentMonthTransactions
-    .filter(t => t.type === 'INCOME')
+    .filter(t => t.type === 'INCOME' && !t.transferId)
     .reduce((sum, t) => {
       const wallet = getWalletById(t.walletId);
       return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
     }, 0);
 
   const monthlyExpenses = currentMonthTransactions
-    .filter(t => t.type === 'EXPENSE')
+    .filter(t => t.type === 'EXPENSE' && !t.transferId)
     .reduce((sum, t) => {
       const wallet = getWalletById(t.walletId);
       return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
     }, 0);
+
+  // Prepare Budget Chart Data
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  const budgetData = budgetPlans
+    .filter(bp => bp.month === currentMonth && bp.year === currentYear)
+    .map(bp => {
+      const category = getCategoryById(bp.categoryId);
+      const spent = currentMonthTransactions
+        .filter(t => t.type === 'EXPENSE' && t.categoryId === bp.categoryId)
+        .reduce((sum, t) => {
+          const wallet = getWalletById(t.walletId);
+          return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
+        }, 0);
+      
+      return {
+        name: category?.name || 'Other',
+        planned: bp.limit,
+        actual: Math.round(spent * 100) / 100,
+        fill: category?.color || '#6b7280'
+      };
+    })
+    .sort((a, b) => b.planned - a.planned)
+    .slice(0, 6); // Top 6 budgets to keep it clean
 
   return (
     <Layout>
@@ -122,40 +159,96 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                <Link to="/transactions">
-                  <Plus className="h-5 w-5" />
-                  <span className="text-sm">Add Transaction</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                <Link to="/savings">
-                  <PiggyBank className="h-5 w-5" />
-                  <span className="text-sm">Savings Goal</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                <Link to="/credits">
-                  <CreditCard className="h-5 w-5" />
-                  <span className="text-sm">Add Credit</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                <Link to="/budget">
-                  <Calendar className="h-5 w-5" />
-                  <span className="text-sm">Plan Budget</span>
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Quick Actions and Budget Chart */}
+        <div className="grid gap-6 md:grid-cols-12">
+          {/* Quick Actions */}
+          <Card className="md:col-span-4 h-full">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
+                  <Link to="/transactions">
+                    <Plus className="h-5 w-5 text-gray-400" />
+                    <span className="text-xs">Transaction</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
+                  <Link to="/savings">
+                    <PiggyBank className="h-5 w-5 text-gray-400" />
+                    <span className="text-xs">Savings</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
+                  <Link to="/credits">
+                    <CreditCard className="h-5 w-5 text-gray-400" />
+                    <span className="text-xs">Credit</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
+                  <Link to="/budget">
+                    <Calendar className="h-5 w-5 text-gray-400" />
+                    <span className="text-xs">Budget</span>
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Budget Chart */}
+          <Card className="md:col-span-8">
+            <CardHeader className="pb-0 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Budget vs Actual</CardTitle>
+                <p className="text-xs text-gray-500 mt-1">Status for {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+              </div>
+              <BarChart3 className="h-4 w-4 text-gray-400" />
+            </CardHeader>
+            <CardContent className="pt-4 h-[240px]">
+              {budgetData.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center">
+                  <BarChart3 className="h-8 w-8 text-gray-200 mb-2" />
+                  <p className="text-sm text-gray-400">No budget plans set for this month</p>
+                  <Button asChild variant="link" size="sm" className="mt-1">
+                    <Link to="/budget">Go to Budgeting</Link>
+                  </Button>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={budgetData}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                    barGap={0}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false}
+                      tick={{ fontSize: 11, fontWeight: 500 }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                    />
+                    <Bar dataKey="planned" fill="#e2e8f0" radius={[0, 4, 4, 0]} barSize={8} name="Planned" />
+                    <Bar dataKey="actual" radius={[0, 4, 4, 0]} barSize={14} name="Actual">
+                      {budgetData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.actual > entry.planned ? '#ef4444' : entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Wallets */}
