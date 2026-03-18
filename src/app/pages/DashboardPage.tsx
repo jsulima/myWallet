@@ -78,16 +78,22 @@ export default function DashboardPage() {
     }, 0);
 
   // Prepare Budget Chart Data
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-
   const budgetData = budgetPlans
-    .filter(bp => bp.month === currentMonth && bp.year === currentYear)
+    .filter(bp => bp.status === 'ACTIVE')
     .map(bp => {
       const category = getCategoryById(bp.categoryId);
-      const spent = currentMonthTransactions
-        .filter(t => t.type === 'EXPENSE' && t.categoryId === bp.categoryId)
+      const start = new Date(bp.startDate);
+      const end = new Date(bp.endDate);
+
+      const spent = transactions
+        .filter(t => {
+          const d = new Date(t.date);
+          return (
+            t.type === 'EXPENSE' &&
+            t.categoryId === bp.categoryId &&
+            d >= start && d <= end
+          );
+        })
         .reduce((sum, t) => {
           const wallet = getWalletById(t.walletId);
           return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
@@ -97,11 +103,12 @@ export default function DashboardPage() {
         name: category?.name || 'Other',
         planned: bp.limit,
         actual: Math.round(spent * 100) / 100,
-        fill: category?.color || '#6b7280'
+        fill: category?.color || '#6b7280',
+        period: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`
       };
     })
     .sort((a, b) => b.planned - a.planned)
-    .slice(0, 6); // Top 6 budgets to keep it clean
+    .slice(0, 6); // Top 6 active budgets
 
   return (
     <Layout>
@@ -201,7 +208,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-0 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg">Budget vs Actual</CardTitle>
-                <p className="text-xs text-gray-500 mt-1">Status for {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                <p className="text-xs text-gray-500 mt-1">Status for active planning periods</p>
               </div>
               <BarChart3 className="h-4 w-4 text-gray-400" />
             </CardHeader>
