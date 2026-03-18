@@ -275,7 +275,11 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {wallets.map((wallet) => (
-                    <div key={wallet.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <Link 
+                      key={wallet.id} 
+                      to={`/transactions?walletId=${wallet.id}`}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                    >
                       <div>
                         <p className="font-medium">{wallet.name}</p>
                         <p className="text-sm text-gray-600">{wallet.currency}</p>
@@ -283,7 +287,7 @@ export default function DashboardPage() {
                       <p className="font-bold">
                         {wallet.currency === 'USD' ? '$' : '₴'}{wallet.balance.toFixed(2)}
                       </p>
-                    </div>
+                    </Link>
                   ))}
                   <Button asChild variant="outline" className="w-full" size="sm">
                     <Link to="/add-wallet">

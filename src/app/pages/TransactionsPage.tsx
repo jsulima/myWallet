@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { Plus, ArrowUpRight, ArrowDownRight, Trash2, Edit2, ArrowRight, Repeat } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -30,6 +31,15 @@ export default function TransactionsPage() {
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedWalletId, setSelectedWalletId] = useState<string>(searchParams.get('walletId') || 'all');
+
+  useEffect(() => {
+    const walletId = searchParams.get('walletId');
+    if (walletId) {
+      setSelectedWalletId(walletId);
+    }
+  }, [searchParams]);
   const [formData, setFormData] = useState({
     walletId: '',
     targetWalletId: '',
@@ -99,7 +109,12 @@ export default function TransactionsPage() {
 
 
 
-  const sortedTransactions = [...transactions].sort(
+  const filteredTransactions = transactions.filter(t => {
+    if (!selectedWalletId || selectedWalletId === 'all') return true;
+    return t.walletId === selectedWalletId || t.targetWalletId === selectedWalletId;
+  });
+
+  const sortedTransactions = [...filteredTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
@@ -251,7 +266,32 @@ export default function TransactionsPage() {
             <h1 className="text-3xl font-bold">Transactions</h1>
             <p className="text-gray-600">Track your income and expenses</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
+            <Select 
+              value={selectedWalletId} 
+              onValueChange={(value) => {
+                setSelectedWalletId(value);
+                if (value === 'all') {
+                  searchParams.delete('walletId');
+                } else {
+                  searchParams.set('walletId', value);
+                }
+                setSearchParams(searchParams);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Wallets" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Wallets</SelectItem>
+                {wallets.map((wallet) => (
+                  <SelectItem key={wallet.id} value={wallet.id}>
+                    {wallet.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
               <ArrowUpRight className="h-4 w-4 mr-2" />
               Transfer
@@ -411,6 +451,7 @@ export default function TransactionsPage() {
           )}
           </div>
         </div>
+      </div>
 
         <Card>
           <CardContent className="pt-6">
