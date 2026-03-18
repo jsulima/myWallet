@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, Trash2, Edit2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import TransferDialog from '../components/TransferDialog';
+import EditTransactionDialog from '../components/EditTransactionDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ export default function TransactionsPage() {
   const { transactions, wallets, categories, addTransaction, deleteTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     walletId: '',
@@ -72,6 +74,8 @@ export default function TransactionsPage() {
       setIsLoading(false);
     }
   };
+
+
 
   const sortedTransactions = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -129,7 +133,16 @@ export default function TransactionsPage() {
                     {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
                   </p>
                 </div>
-                <AlertDialog>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-400 hover:text-blue-600"
+                    onClick={() => setEditingTransaction(transaction)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="ghost"
@@ -167,7 +180,8 @@ export default function TransactionsPage() {
                 </AlertDialog>
               </div>
             </div>
-          );
+          </div>
+        );
         })
       )}
     </div>
@@ -291,6 +305,13 @@ export default function TransactionsPage() {
             </DialogContent>
           </Dialog>
           <TransferDialog open={isTransferOpen} onOpenChange={setIsTransferOpen} />
+          {editingTransaction && (
+            <EditTransactionDialog
+              transaction={editingTransaction}
+              open={!!editingTransaction}
+              onOpenChange={(open) => !open && setEditingTransaction(null)}
+            />
+          )}
           </div>
         </div>
 

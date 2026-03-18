@@ -79,6 +79,7 @@ interface AppContextType {
   addCategory: (category: { name: string; type: string; color?: string; icon?: string }) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
+  updateTransaction: (id: string, transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   transferMoney: (data: {
     sourceWalletId: string;
@@ -199,6 +200,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWallets(updatedWallets);
   };
 
+  const updateTransaction = async (id: string, transaction: { walletId: string; categoryId: string; type: string; amount: number; description?: string; date?: string }) => {
+    const updated = await transactionApi.update(id, transaction);
+    setTransactions(prev => prev.map(t => t.id === id ? updated : t));
+    // Refresh wallets to get updated balance
+    const updatedWallets = await walletApi.getAll();
+    setWallets(updatedWallets);
+  };
+
   const deleteTransaction = async (id: string) => {
     await transactionApi.delete(id);
     setTransactions(prev => prev.filter(t => t.id !== id));
@@ -257,6 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addCategory,
         transactions,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         transferMoney,
         savingPlaces,

@@ -101,6 +101,15 @@ export const transactionApi = {
     description?: string;
   }) =>
     request<any>('/transactions', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: {
+    walletId: string;
+    categoryId: string;
+    amount: number;
+    type: string;
+    date?: string;
+    description?: string;
+  }) =>
+    request<any>(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/transactions/${id}`, { method: 'DELETE' }),
 };
