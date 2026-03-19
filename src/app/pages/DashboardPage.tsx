@@ -20,7 +20,11 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
-  Cell
+  Cell,
+  ReferenceLine,
+  PieChart,
+  Pie,
+  Legend
 } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -99,24 +103,77 @@ export default function DashboardPage() {
           return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
         }, 0);
       
+      const percentage = bp.limit > 0 ? (spent / bp.limit) * 100 : 0;
+      
       return {
         name: category?.name || 'Other',
         planned: bp.limit,
         actual: Math.round(spent * 100) / 100,
+        percentageRaw: percentage,
         fill: category?.color || '#6b7280',
         period: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`
       };
     })
-    .sort((a, b) => b.planned - a.planned)
-    .slice(0, 6); // Top 6 active budgets
+    .filter(bd => bd.actual > 0) // Only show if there's some expense
+    .sort((a, b) => b.percentageRaw - a.percentageRaw) // Sort from most used by desc
+    .slice(0, 8); // Top active budgets
+
+  // Prepare Actual Expenses Pie Chart Data
+  const expenseData = categories
+    .filter(c => c.type === 'EXPENSE')
+    .map(c => {
+      const amount = currentMonthTransactions
+        .filter(t => t.type === 'EXPENSE' && t.categoryId === c.id && !t.transferId)
+        .reduce((sum, t) => {
+          const w = getWalletById(t.walletId);
+          return sum + convertToUSD(t.amount, w?.currency || 'USD');
+        }, 0);
+      return {
+        name: c.name,
+        value: amount,
+        fill: c.color || '#6b7280' // default gray if no color
+      };
+    })
+    .filter(d => d.value > 0)
+    .sort((a, b) => b.value - a.value);
 
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Welcome Section */}
-        <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
-          <p className="text-gray-600">Here's your financial overview</p>
+        {/* Welcome Section and Quick Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
+            <p className="text-gray-600">Here's your financial overview</p>
+          </div>
+          
+          {/* Quick Actions at Top Row */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+            <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
+              <Link to="/transactions">
+                <Plus className="h-4 w-4 mr-2" />
+                Transaction
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
+              <Link to="/savings">
+                <PiggyBank className="h-4 w-4 mr-2" />
+                Savings
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
+              <Link to="/credits">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Credit
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
+              <Link to="/budget">
+                <Calendar className="h-4 w-4 mr-2" />
+                Budget
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -166,57 +223,22 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions and Budget Chart */}
-        <div className="grid gap-6 md:grid-cols-12">
-          {/* Quick Actions */}
-          <Card className="md:col-span-4 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
-                  <Link to="/transactions">
-                    <Plus className="h-5 w-5 text-gray-400" />
-                    <span className="text-xs">Transaction</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
-                  <Link to="/savings">
-                    <PiggyBank className="h-5 w-5 text-gray-400" />
-                    <span className="text-xs">Savings</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
-                  <Link to="/credits">
-                    <CreditCard className="h-5 w-5 text-gray-400" />
-                    <span className="text-xs">Credit</span>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed">
-                  <Link to="/budget">
-                    <Calendar className="h-5 w-5 text-gray-400" />
-                    <span className="text-xs">Budget</span>
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Budget Chart */}
-          <Card className="md:col-span-8">
+        {/* Charts */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Budget vs Actual Chart */}
+          <Card>
             <CardHeader className="pb-0 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Budget vs Actual</CardTitle>
-                <p className="text-xs text-gray-500 mt-1">Status for active planning periods</p>
+                <CardTitle className="text-lg">Budget Usage</CardTitle>
+                <p className="text-xs text-gray-500 mt-1">Percentage of budget spent</p>
               </div>
               <BarChart3 className="h-4 w-4 text-gray-400" />
             </CardHeader>
-            <CardContent className="pt-4 h-[240px]">
+            <CardContent className="pt-4 h-[280px]">
               {budgetData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center">
                   <BarChart3 className="h-8 w-8 text-gray-200 mb-2" />
-                  <p className="text-sm text-gray-400">No budget plans set for this month</p>
+                  <p className="text-sm text-gray-400">No active budget expenses to show</p>
                   <Button asChild variant="link" size="sm" className="mt-1">
                     <Link to="/budget">Go to Budgeting</Link>
                   </Button>
@@ -225,32 +247,94 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={budgetData}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-                    barGap={0}
+                    margin={{ top: 20, right: 10, left: -20, bottom: 5 }}
+                    barSize={24}
                   >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
-                    <XAxis type="number" hide />
-                    <YAxis 
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
                       dataKey="name" 
-                      type="category" 
                       axisLine={false} 
                       tickLine={false}
                       tick={{ fontSize: 11, fontWeight: 500 }}
-                      width={80}
+                    />
+                    <YAxis 
+                      hide
+                      domain={[0, (dataMax: number) => Math.max(100, dataMax)]} 
                     />
                     <Tooltip 
-                      cursor={{ fill: 'transparent' }}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                      cursor={{ fill: '#f8fafc' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white p-3 border rounded-lg shadow-lg">
+                              <p className="font-semibold">{data.name}</p>
+                              <p className="text-sm text-gray-600 mb-1">{data.percentageRaw.toFixed(1)}% used</p>
+                              <p className="text-xs text-gray-500">
+                                ${data.actual.toFixed(2)} / ${data.planned.toFixed(2)}
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
                     />
-                    <Bar dataKey="planned" fill="#e2e8f0" radius={[0, 4, 4, 0]} barSize={8} name="Planned" />
-                    <Bar dataKey="actual" radius={[0, 4, 4, 0]} barSize={14} name="Actual">
+                    {/* A reference line at 100% to show the budget limit */}
+                    <ReferenceLine y={100} stroke="#475569" strokeWidth={2} strokeDasharray="3 3" />
+                    <Bar dataKey="percentageRaw" radius={[4, 4, 0, 0]}>
                       {budgetData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.actual > entry.planned ? '#ef4444' : entry.fill} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.percentageRaw > 100 ? '#ef4444' : entry.fill} 
+                        />
                       ))}
                     </Bar>
                   </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Actual Expenses Pie Chart */}
+          <Card>
+            <CardHeader className="pb-0 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Expenses Breakdown</CardTitle>
+                <p className="text-xs text-gray-500 mt-1">This month's expenses by category</p>
+              </div>
+              <BarChart3 className="h-4 w-4 text-gray-400 rotate-90" />
+            </CardHeader>
+            <CardContent className="pt-4 h-[280px]">
+              {expenseData.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center">
+                  <TrendingDown className="h-8 w-8 text-gray-200 mb-2" />
+                  <p className="text-sm text-gray-400">No expenses recorded this month</p>
+                  <Button asChild variant="link" size="sm" className="mt-1">
+                    <Link to="/transactions">Add Expense</Link>
+                  </Button>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={expenseData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {expenseData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Spent']}
+                    />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                  </PieChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
