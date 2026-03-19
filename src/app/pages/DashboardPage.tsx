@@ -319,21 +319,58 @@ export default function DashboardPage() {
                     <Pie
                       data={expenseData}
                       cx="50%"
-                      cy="50%"
-                      innerRadius={60}
+                      cy="45%"
+                      innerRadius={55}
                       outerRadius={80}
-                      paddingAngle={2}
+                      paddingAngle={3}
                       dataKey="value"
+                      stroke="none"
                     >
                       {expenseData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
                     <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Spent']}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white p-3 border rounded-lg shadow-lg flex items-center gap-3">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.fill }} />
+                              <div>
+                                <p className="font-semibold text-sm" style={{ color: data.fill }}>{data.name}</p>
+                                <p className="text-gray-900 font-bold">${data.value.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
                     />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      content={(props) => {
+                        const { payload } = props;
+                        return (
+                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 px-2">
+                            {payload?.map((entry, index) => (
+                              <div key={`item-${index}`} className="flex items-center gap-1.5">
+                                <span 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span 
+                                  className="text-sm font-medium"
+                                  style={{ color: entry.color }}
+                                >
+                                  {entry.value}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               )}
