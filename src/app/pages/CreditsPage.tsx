@@ -6,13 +6,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
 
 export default function CreditsPage() {
-  const { credits, addCredit } = useApp();
+  const { credits, addCredit, payCredit, wallets, categories } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [payingCreditId, setPayingCreditId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -21,6 +23,13 @@ export default function CreditsPage() {
     interestRate: '',
     monthlyPayment: '',
     dueDate: '',
+  });
+
+  const [payFormData, setPayFormData] = useState({
+    walletId: '',
+    categoryId: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,6 +54,40 @@ export default function CreditsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payingCreditId) return;
+    
+    setIsLoading(true);
+    try {
+      await payCredit(payingCreditId, {
+        walletId: payFormData.walletId,
+        categoryId: payFormData.categoryId,
+        amount: parseFloat(payFormData.amount),
+        date: new Date(payFormData.date).toISOString(),
+      });
+      toast.success('Payment recorded successfully!');
+      setPayingCreditId(null);
+      setPayFormData({ walletId: '', categoryId: '', amount: '', date: new Date().toISOString().split('T')[0] });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to record payment');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openPayDialog = (credit: any) => {
+    // Find default expense category if none selected
+    const defaultExpenseCat = categories.find(c => c.type === 'EXPENSE');
+    setPayFormData({
+      walletId: wallets[0]?.id || '',
+      categoryId: defaultExpenseCat?.id || '',
+      amount: credit.monthlyPayment > 0 ? credit.monthlyPayment.toString() : '0',
+      date: new Date().toISOString().split('T')[0],
+    });
+    setPayingCreditId(credit.id);
   };
 
   const getTotalDebt = () => {
@@ -197,7 +240,7 @@ export default function CreditsPage() {
                     </div>
 
                     <div className="pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="text-sm text-gray-600">Monthly Payment</p>
                           <p className="font-semibold">${(credit.monthlyPayment ?? 0).toFixed(2)}</p>
@@ -211,6 +254,25 @@ export default function CreditsPage() {
                           </div>
                         )}
                       </div>
+
+                      <div className="flex items-center justify-between bg-blue-50/50 p-2 rounded text-sm mb-4">
+                        <span className="text-gray-600">Est. payoff time:</span>
+                        <span className="font-medium text-blue-700">
+                          {credit.monthlyPayment > 0 && credit.remainingAmount > 0 
+                            ? `${Math.ceil(credit.remainingAmount / credit.monthlyPayment)} months`
+                            : credit.remainingAmount <= 0 ? 'Paid off' : 'N/A'
+                          }
+                        </span>
+                      </div>
+
+                      <Button 
+                        variant="outline" 
+                        className="w-full font-medium shadow-sm hover:bg-gray-50 bg-white" 
+                        onClick={() => openPayDialog(credit)}
+                        disabled={credit.remainingAmount <= 0}
+                      >
+                        Make Payment
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -218,6 +280,75 @@ export default function CreditsPage() {
             );
           })}
         </div>
+
+        {/* Payment Dialog */}
+        <Dialog open={!!payingCreditId} onOpenChange={(open) => !open && setPayingCreditId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Make Credit Payment</DialogTitle>
+              <DialogDescription>Record a payment for this credit. This will deduct from your selected wallet.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handlePaySubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="walletId">From Wallet</Label>
+                <Select 
+                  value={payFormData.walletId} 
+                  onValueChange={(val) => setPayFormData({ ...payFormData, walletId: val })}
+                  required
+                >
+                  <SelectTrigger id="walletId">
+                    <SelectValue placeholder="Select a wallet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets.map(w => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name} ({w.currency} ${w.balance.toFixed(2)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="categoryId">Expense Category</Label>
+                <Select 
+                  value={payFormData.categoryId} 
+                  onValueChange={(val) => setPayFormData({ ...payFormData, categoryId: val })}
+                  required
+                >
+                  <SelectTrigger id="categoryId">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.filter(c => c.type === 'EXPENSE').map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="payAmount">Payment Amount</Label>
+                <Input id="payAmount" type="number" step="0.01" placeholder="0.00"
+                  value={payFormData.amount} onChange={(e) => setPayFormData({ ...payFormData, amount: e.target.value })} required />
+              </div>
+
+              <div>
+                <Label htmlFor="payDate">Date</Label>
+                <Input id="payDate" type="date"
+                  value={payFormData.date} onChange={(e) => setPayFormData({ ...payFormData, date: e.target.value })} required />
+              </div>
+
+              <div className="pt-2">
+                <Button type="submit" className="w-full" disabled={isLoading || !payFormData.walletId || !payFormData.categoryId}>
+                  {isLoading ? 'Processing...' : 'Submit Payment'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {credits.length === 0 && (
           <Card>

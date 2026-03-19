@@ -119,6 +119,7 @@ interface AppContextType {
   updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
   credits: Credit[];
   addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
+  payCredit: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => Promise<void>;
   budgetPlans: BudgetPlan[];
   addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) => Promise<void>;
   updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string }) => Promise<void>;
@@ -299,6 +300,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCredits(prev => [...prev, created]);
   };
 
+  const payCredit = async (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => {
+    await creditApi.pay(id, data);
+    // Refresh all data since this affects wallets, credits, and transactions
+    await fetchAllData();
+  };
+
   const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) => {
     const created = await budgetApi.create(budgetPlan);
     setBudgetPlans(prev => [...prev, created]);
@@ -337,6 +344,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateSavingPlace,
         credits,
         addCredit,
+        payCredit,
         budgetPlans,
         addBudgetPlan,
         updateBudgetPlan,

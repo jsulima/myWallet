@@ -156,6 +156,8 @@ export const creditApi = {
     request<any>(`/credits/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/credits/${id}`, { method: 'DELETE' }),
+  pay: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) =>
+    request<any>(`/credits/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Transfers
