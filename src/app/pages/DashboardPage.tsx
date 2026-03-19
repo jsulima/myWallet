@@ -23,8 +23,7 @@ import {
   Cell,
   ReferenceLine,
   PieChart,
-  Pie,
-  Legend
+  Pie
 } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -345,30 +344,6 @@ export default function DashboardPage() {
                           );
                         }
                         return null;
-                      }}
-                    />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      content={(props) => {
-                        const { payload } = props;
-                        return (
-                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 px-2">
-                            {payload?.map((entry, index) => (
-                              <div key={`item-${index}`} className="flex items-center gap-1.5">
-                                <span 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: entry.color }}
-                                />
-                                <span 
-                                  className="text-sm font-medium"
-                                  style={{ color: entry.color }}
-                                >
-                                  {entry.value}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        );
                       }}
                     />
                   </PieChart>
