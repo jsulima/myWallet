@@ -59,9 +59,9 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('Lunch')).toBeInTheDocument();
     expect(screen.queryByText('Dinner')).not.toBeInTheDocument();
 
-    // Select should show 'Cash'
-    const select = screen.getByRole('combobox');
-    expect(select).toHaveTextContent('Cash');
+    // Select should show 'Cash' (Wallet is the first dropdown)
+    const selects = screen.getAllByRole('combobox');
+    expect(selects[0]).toHaveTextContent('Cash');
   });
 
   it('shows all transactions when no walletId is provided', () => {

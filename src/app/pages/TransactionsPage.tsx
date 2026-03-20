@@ -33,11 +33,21 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedWalletId, setSelectedWalletId] = useState<string>(searchParams.get('walletId') || 'all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(searchParams.get('categoryId') || 'all');
 
   useEffect(() => {
     const walletId = searchParams.get('walletId');
     if (walletId) {
       setSelectedWalletId(walletId);
+    } else {
+      setSelectedWalletId('all');
+    }
+    
+    const categoryId = searchParams.get('categoryId');
+    if (categoryId) {
+      setSelectedCategoryId(categoryId);
+    } else {
+      setSelectedCategoryId('all');
     }
   }, [searchParams]);
   const [formData, setFormData] = useState({
@@ -110,8 +120,9 @@ export default function TransactionsPage() {
 
 
   const filteredTransactions = transactions.filter(t => {
-    if (!selectedWalletId || selectedWalletId === 'all') return true;
-    return t.walletId === selectedWalletId || t.targetWalletId === selectedWalletId;
+    const passWallet = !selectedWalletId || selectedWalletId === 'all' || t.walletId === selectedWalletId || t.targetWalletId === selectedWalletId;
+    const passCategory = !selectedCategoryId || selectedCategoryId === 'all' || t.categoryId === selectedCategoryId;
+    return passWallet && passCategory;
   });
 
   const sortedTransactions = [...filteredTransactions].sort(
@@ -287,6 +298,30 @@ export default function TransactionsPage() {
                 {wallets.map((wallet) => (
                   <SelectItem key={wallet.id} value={wallet.id}>
                     {wallet.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select 
+              value={selectedCategoryId} 
+              onValueChange={(value) => {
+                setSelectedCategoryId(value);
+                if (value === 'all') {
+                  searchParams.delete('categoryId');
+                } else {
+                  searchParams.set('categoryId', value);
+                }
+                setSearchParams(searchParams);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>

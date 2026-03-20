@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus, Calendar, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -14,6 +15,7 @@ import { currencyApi } from '../services/api';
 
 export default function BudgetPage() {
   const { budgetPlans, addBudgetPlan, updateBudgetPlan, deleteBudgetPlan, categories, transactions, wallets } = useApp();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -281,7 +283,11 @@ export default function BudgetPage() {
                 const category = getCategoryById(bp.categoryId);
                 const percent = (bp.spentAmount / bp.limit) * 100;
                 return (
-                  <Card key={bp.id} className="relative overflow-hidden group">
+                  <Card 
+                    key={bp.id} 
+                    className="relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
+                  >
                     <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
                     <CardContent className="pt-4 pb-3 px-4">
                       <div className="flex justify-between items-start mb-2">
@@ -292,10 +298,20 @@ export default function BudgetPage() {
                           </p>
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(bp)}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7" 
+                            onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                          >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => deleteBudgetPlan(bp.id)}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-red-500" 
+                            onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
