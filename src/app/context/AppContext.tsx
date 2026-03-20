@@ -82,6 +82,7 @@ interface AppContextType {
   updateWallet: (id: string, wallet: Partial<Wallet>) => Promise<void>;
   categories: Category[];
   addCategory: (category: { name: string; type: string; color?: string; icon?: string }) => Promise<void>;
+  updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: { 
     walletId: string; 
@@ -218,6 +219,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCategories(prev => [...prev, created]);
   };
 
+  const updateCategory = async (id: string, category: Partial<Category>) => {
+    const updated = await categoryApi.update(id, category);
+    setCategories(prev => prev.map(c => c.id === id ? updated : c));
+  };
+
   const addTransaction = async (transaction: { 
     walletId: string; 
     categoryId: string; 
@@ -334,6 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateWallet,
         categories,
         addCategory,
+        updateCategory,
         transactions,
         addTransaction,
         updateTransaction,
