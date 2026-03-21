@@ -137,14 +137,16 @@ export default function BudgetPage() {
     .map(bp => ({
       ...bp,
       spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate),
-    }));
+    }))
+    .sort((a, b) => b.limit - a.limit);
 
   const draftBudgets = budgetPlans
     .filter(bp => bp.status === 'DRAFT')
     .map(bp => ({
       ...bp,
       spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate),
-    }));
+    }))
+    .sort((a, b) => b.limit - a.limit);
 
   const totalPlanned = activeBudgets.reduce((sum, bp) => sum + bp.limit, 0);
   const totalSpent = activeBudgets.reduce((sum, bp) => sum + bp.spentAmount, 0);
