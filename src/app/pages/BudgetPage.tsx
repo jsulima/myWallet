@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Calendar, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
+import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -113,6 +113,74 @@ export default function BudgetPage() {
     toast.info('Planning next period (approx. monthly cycle)...');
   };
 
+  const handleCloneToDraft = async () => {
+    if (activeBudgets.length === 0) {
+      toast.error('No active budgets to clone.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const maxEndDate = activeBudgets.reduce((max, bp) => {
+        const d = new Date(bp.endDate);
+        return d > max ? d : max;
+      }, new Date(0));
+
+      const nextStart = new Date(maxEndDate);
+      nextStart.setDate(nextStart.getDate() + 1);
+      nextStart.setHours(0, 0, 0, 0);
+
+      const nextEnd = new Date(nextStart);
+      nextEnd.setDate(nextEnd.getDate() + 30);
+      nextEnd.setHours(23, 59, 59, 999);
+
+      await Promise.all(
+        activeBudgets.map(bp => 
+          addBudgetPlan({
+            categoryId: bp.categoryId,
+            limit: bp.limit,
+            startDate: nextStart.toISOString(),
+            endDate: nextEnd.toISOString(),
+            status: 'DRAFT'
+          })
+        )
+      );
+
+      toast.success('Cloned active budgets to drafts for next 30 days!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to clone budgets');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFinishAll = async () => {
+    if (activeBudgets.length === 0) return;
+    if (!confirm('Are you sure you want to finish all active budgets?')) return;
+    setIsLoading(true);
+    try {
+      await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
+      toast.success('Finished all active budgets.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to finish budgets');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleActivateAll = async () => {
+    if (draftBudgets.length === 0) return;
+    setIsLoading(true);
+    try {
+      await Promise.all(draftBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'ACTIVE' })));
+      toast.success('Activated all draft budgets.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to activate budgets');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getSpentAmount = (categoryId: string, startStr: string, endStr: string) => {
     const start = new Date(startStr);
     const end = new Date(endStr);
@@ -161,6 +229,18 @@ export default function BudgetPage() {
             <p className="text-gray-600">Plan flexible periods and manage budget drafts</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading || activeBudgets.length === 0}>
+              <Copy className="h-4 w-4 mr-2" />
+              Clone to Draft
+            </Button>
+            <Button variant="outline" className="text-red-600 border-red-100 hover:bg-red-50" onClick={handleFinishAll} disabled={isLoading || activeBudgets.length === 0}>
+              <FastForward className="h-4 w-4 mr-2" />
+              Finish All
+            </Button>
+            <Button variant="outline" className="text-green-600 border-green-100 hover:bg-green-50" onClick={handleActivateAll} disabled={isLoading || draftBudgets.length === 0}>
+              <Zap className="h-4 w-4 mr-2" />
+              Activate Drafts
+            </Button>
             <Button variant="outline" onClick={handleAdopt}>
               <Calendar className="h-4 w-4 mr-2" />
               Plan Next Period
@@ -358,9 +438,14 @@ export default function BudgetPage() {
                   <CardContent className="pt-4 pb-3 px-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-semibold">{getCategoryById(bp.categoryId)?.name}</span>
-                      <Button variant="ghost" size="sm" className="h-7 text-blue-600 px-2" onClick={() => handleEdit(bp)}>
-                        Modify
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" className="h-7 text-blue-600 px-2" onClick={() => handleEdit(bp)}>
+                          Modify
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-red-600 px-1" onClick={() => deleteBudgetPlan(bp.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="text-xl font-black">${bp.limit.toFixed(0)}</div>
                     <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-tight">
