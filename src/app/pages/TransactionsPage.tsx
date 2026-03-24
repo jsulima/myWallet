@@ -539,7 +539,6 @@ export default function TransactionsPage() {
             </div>
             
         </div>
-      </div>
 
         <Card>
           <CardContent className="pt-6">
