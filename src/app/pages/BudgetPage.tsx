@@ -319,8 +319,13 @@ export default function BudgetPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="font-medium">${bp.spentAmount.toFixed(0)}</span>
+                        <div className="flex justify-between text-xs mb-1 items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">${bp.spentAmount.toFixed(0)}</span>
+                            <span className={`text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${bp.limit - bp.spentAmount >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                              {bp.limit - bp.spentAmount >= 0 ? 'Left: ' : 'Over: '}${Math.abs(bp.limit - bp.spentAmount).toFixed(0)}
+                            </span>
+                          </div>
                           <span className="text-gray-400">of ${bp.limit.toFixed(0)}</span>
                         </div>
                         <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
