@@ -101,18 +101,17 @@ export default function CreditsPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Credits & Loans</h1>
-            <p className="text-gray-600">Manage your debts and track payments</p>
-          </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Credit
-              </Button>
-            </DialogTrigger>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold">Credits & Loans</h1>
+          <p className="text-gray-600">Manage your debts and track payments</p>
+          <div className="flex items-center gap-2 mt-2 justify-end">
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Credit
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Credit/Loan</DialogTitle>
@@ -162,6 +161,7 @@ export default function CreditsPage() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
         {credits.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">

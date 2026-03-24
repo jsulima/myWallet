@@ -291,12 +291,10 @@ export default function TransactionsPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Transactions</h1>
-            <p className="text-gray-600">Track your income and expenses</p>
-          </div>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold">Transactions</h1>
+          <p className="text-gray-600">Track your income and expenses</p>
+          <div className="flex items-center gap-2 mt-2 justify-end">
             <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
               <ArrowUpRight className="h-4 w-4 mr-2" />
               Transfer
@@ -308,8 +306,8 @@ export default function TransactionsPage() {
                   Add Transaction
                 </Button>
               </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
                 <DialogTitle>Add Transaction</DialogTitle>
                 <DialogDescription>
                   Add a new transaction to your wallet.
@@ -446,16 +444,16 @@ export default function TransactionsPage() {
               </form>
             </DialogContent>
           </Dialog>
-          <TransferDialog open={isTransferOpen} onOpenChange={setIsTransferOpen} />
-          {editingTransaction && (
-            <EditTransactionDialog
-              transaction={editingTransaction}
-              open={!!editingTransaction}
-              onOpenChange={(open) => !open && setEditingTransaction(null)}
-            />
-          )}
-          </div>
         </div>
+      </div>
+      <TransferDialog open={isTransferOpen} onOpenChange={setIsTransferOpen} />
+      {editingTransaction && (
+        <EditTransactionDialog
+          transaction={editingTransaction}
+          open={!!editingTransaction}
+          onOpenChange={(open) => !open && setEditingTransaction(null)}
+        />
+      )}
 
         <div className="flex flex-wrap items-center gap-3">
             <Select 

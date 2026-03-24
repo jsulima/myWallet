@@ -223,12 +223,10 @@ export default function BudgetPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Agile Budgeting</h1>
-            <p className="text-gray-600">Plan flexible periods and manage budget drafts</p>
-          </div>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold">Agile Budgeting</h1>
+          <p className="text-gray-600">Plan flexible periods and manage budget drafts</p>
+          <div className="flex items-center gap-2 mt-2 justify-end">
             <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading || activeBudgets.length === 0}>
               <Copy className="h-4 w-4 mr-2" />
               Clone to Draft
@@ -321,7 +319,7 @@ export default function BudgetPage() {
         </div>
 
         {/* Summary Dashboard */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card className="bg-gradient-to-br from-white to-gray-50">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Active Budget</CardTitle>
@@ -354,6 +352,15 @@ export default function BudgetPage() {
             <CardContent>
               <div className="text-2xl font-bold">{overBudgetCount}</div>
               <p className="text-xs text-gray-400 mt-1">Categories needing attention</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-white to-blue-50 border-blue-100">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold text-blue-500 uppercase tracking-wider">Total Draft Budget</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">${draftBudgets.reduce((sum, bp) => sum + bp.limit, 0).toFixed(0)}</div>
+              <p className="text-xs text-gray-400 mt-1">{draftBudgets.length} draft {draftBudgets.length === 1 ? 'item' : 'items'} pending</p>
             </CardContent>
           </Card>
         </div>

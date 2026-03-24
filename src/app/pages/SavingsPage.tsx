@@ -75,18 +75,17 @@ export default function SavingsPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Savings Goals</h1>
-            <p className="text-gray-600">Track your savings and reach your goals</p>
-          </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Savings Goal
-              </Button>
-            </DialogTrigger>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold">Savings Goals</h1>
+          <p className="text-gray-600">Track your savings and reach your goals</p>
+          <div className="flex items-center gap-2 mt-2 justify-end">
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Savings Goal
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Savings Goal</DialogTitle>
@@ -147,6 +146,7 @@ export default function SavingsPage() {
             </DialogContent>
           </Dialog>
         </div>
+      </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           {savingPlaces.map((saving) => {

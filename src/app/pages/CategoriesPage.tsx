@@ -89,31 +89,33 @@ export default function CategoriesPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Categories</h1>
-            <p className="text-gray-600">Organize your transactions with categories</p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold">Categories</h1>
+          <p className="text-gray-600">Organize your transactions with categories</p>
+          <div className="flex items-center gap-2 mt-2 justify-end">
+            <Button onClick={handleOpenAdd}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Category
+            </Button>
           </div>
-          <Button onClick={handleOpenAdd}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Category
-          </Button>
+        </div>
 
-          <Dialog open={isOpen} onOpenChange={(open) => {
-            setIsOpen(open);
-            if (!open) {
-              setEditingCategoryId(null);
-              setFormData(defaultFormData);
-            }
-          }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingCategoryId ? 'Edit Category' : 'Create Category'}</DialogTitle>
-                <DialogDescription>
-                  {editingCategoryId ? 'Modify the details for this category' : 'Enter the details for the new category'}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+        <Dialog open={!!(isOpen || editingCategoryId)} onOpenChange={(open) => {
+          if (!open) {
+            setIsOpen(false);
+            setEditingCategoryId(null);
+            setFormData(defaultFormData);
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingCategoryId ? 'Edit Category' : 'Create Category'}</DialogTitle>
+              <DialogDescription>
+                {editingCategoryId ? 'Modify the details for this category' : 'Enter the details for the new category'}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Form content ... */}
                 <div>
                   <Label htmlFor="name">Category Name</Label>
                   <Input
@@ -186,7 +188,6 @@ export default function CategoriesPage() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => {

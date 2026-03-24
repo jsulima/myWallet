@@ -140,14 +140,12 @@ export default function DashboardPage() {
     <Layout>
       <div className="space-y-6">
         {/* Welcome Section and Quick Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
-            <p className="text-gray-600">Here's your financial overview</p>
-          </div>
-          
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
+          <p className="text-gray-600">Here's your financial overview</p>
+
           {/* Quick Actions at Top Row */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 mt-2 justify-end">
             <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
               <Link to="/transactions">
                 <Plus className="h-4 w-4 mr-2" />
