@@ -60,20 +60,35 @@ export default function DashboardPage() {
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
 
-  const currentMonthTransactions = transactions.filter(t => {
+  // Determine active budget period (use earliest start to latest end among active budgets)
+  const activeBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
+  const hasBudgetPeriod = activeBudgets.length > 0;
+
+  const periodStart = hasBudgetPeriod
+    ? new Date(Math.min(...activeBudgets.map(bp => new Date(bp.startDate).getTime())))
+    : (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; })();
+
+  const periodEnd = hasBudgetPeriod
+    ? new Date(Math.max(...activeBudgets.map(bp => new Date(bp.endDate).getTime())))
+    : (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })();
+
+  const periodLabel = hasBudgetPeriod
+    ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
+    : 'This month';
+
+  const periodTransactions = transactions.filter(t => {
     const d = new Date(t.date);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    return d >= periodStart && d <= periodEnd;
   });
 
-  const monthlyIncome = currentMonthTransactions
+  const periodIncome = periodTransactions
     .filter(t => t.type === 'INCOME' && !t.transferId)
     .reduce((sum, t) => {
       const wallet = getWalletById(t.walletId);
       return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
     }, 0);
 
-  const monthlyExpenses = currentMonthTransactions
+  const periodExpenses = periodTransactions
     .filter(t => t.type === 'EXPENSE' && !t.transferId)
     .reduce((sum, t) => {
       const wallet = getWalletById(t.walletId);
@@ -117,11 +132,11 @@ export default function DashboardPage() {
     .sort((a, b) => b.percentageRaw - a.percentageRaw) // Sort from most used by desc
     .slice(0, 8); // Top active budgets
 
-  // Prepare Actual Expenses Pie Chart Data
+  // Prepare Actual Expenses Pie Chart Data (period-aware)
   const expenseData = categories
     .filter(c => c.type === 'EXPENSE')
     .map(c => {
-      const amount = currentMonthTransactions
+      const amount = periodTransactions
         .filter(t => t.type === 'EXPENSE' && t.categoryId === c.id && !t.transferId)
         .reduce((sum, t) => {
           const w = getWalletById(t.walletId);
@@ -188,23 +203,27 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Monthly Income</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">
+                {hasBudgetPeriod ? 'Period Income' : 'Monthly Income'}
+              </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${monthlyIncome.toFixed(2)}</div>
-              <p className="text-xs text-gray-600 mt-1">This month</p>
+              <div className="text-2xl font-bold text-green-600">${periodIncome.toFixed(2)}</div>
+              <p className="text-xs text-gray-600 mt-1">{periodLabel}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Monthly Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">
+                {hasBudgetPeriod ? 'Period Expenses' : 'Monthly Expenses'}
+              </CardTitle>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">${monthlyExpenses.toFixed(2)}</div>
-              <p className="text-xs text-gray-600 mt-1">This month</p>
+              <div className="text-2xl font-bold text-red-600">${periodExpenses.toFixed(2)}</div>
+              <p className="text-xs text-gray-600 mt-1">{periodLabel}</p>
             </CardContent>
           </Card>
 
@@ -297,7 +316,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-0 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg">Expenses Breakdown</CardTitle>
-                <p className="text-xs text-gray-500 mt-1">This month's expenses by category</p>
+                <p className="text-xs text-gray-500 mt-1">{hasBudgetPeriod ? `Active period: ${periodLabel}` : 'This month\'s expenses by category'}</p>
               </div>
               <BarChart3 className="h-4 w-4 text-gray-400 rotate-90" />
             </CardHeader>
@@ -305,7 +324,7 @@ export default function DashboardPage() {
               {expenseData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center">
                   <TrendingDown className="h-8 w-8 text-gray-200 mb-2" />
-                  <p className="text-sm text-gray-400">No expenses recorded this month</p>
+                <p className="text-sm text-gray-400">{hasBudgetPeriod ? 'No expenses in this budget period' : 'No expenses recorded this month'}</p>
                   <Button asChild variant="link" size="sm" className="mt-1">
                     <Link to="/transactions">Add Expense</Link>
                   </Button>
