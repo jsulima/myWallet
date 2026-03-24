@@ -440,27 +440,57 @@ export default function BudgetPage() {
               Planned (Drafts)
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {draftBudgets.map(bp => (
-                <Card key={bp.id} className="bg-blue-50/20 border-blue-100 border-dashed">
-                  <CardContent className="pt-4 pb-3 px-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-semibold">{getCategoryById(bp.categoryId)?.name}</span>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 text-blue-600 px-2" onClick={() => handleEdit(bp)}>
-                          Modify
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-red-600 px-1" onClick={() => deleteBudgetPlan(bp.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+              {draftBudgets.map(bp => {
+                const category = getCategoryById(bp.categoryId);
+                return (
+                  <Card
+                    key={bp.id}
+                    className="relative overflow-hidden group cursor-pointer hover:shadow-md transition-all opacity-60 hover:opacity-80 border-dashed"
+                  >
+                    {/* Same color sidebar as active cards */}
+                    <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
+                    <CardContent className="pt-4 pb-3 px-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">Draft</span>
+                          </div>
+                          <h4 className="font-bold text-sm">{category?.name}</h4>
+                          <p className="text-[10px] text-gray-400">
+                            {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-500"
+                            onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-xl font-black">${bp.limit.toFixed(0)}</div>
-                    <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-tight">
-                      For period starting {new Date(bp.startDate).toLocaleDateString()}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs mb-1 items-center">
+                          <span className="font-medium text-gray-500">Planned</span>
+                          <span className="text-gray-400">of ${bp.limit.toFixed(0)}</span>
+                        </div>
+                        {/* Static empty progress bar to match active card shape */}
+                        <div className="h-1.5 rounded-full bg-gray-100" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
