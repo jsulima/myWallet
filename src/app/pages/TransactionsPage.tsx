@@ -34,6 +34,8 @@ export default function TransactionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedWalletId, setSelectedWalletId] = useState<string>(searchParams.get('walletId') || 'all');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(searchParams.get('categoryId') || 'all');
+  const [startDate, setStartDate] = useState<string>(searchParams.get('startDate') || '');
+  const [endDate, setEndDate] = useState<string>(searchParams.get('endDate') || '');
 
   useEffect(() => {
     const walletId = searchParams.get('walletId');
@@ -49,6 +51,12 @@ export default function TransactionsPage() {
     } else {
       setSelectedCategoryId('all');
     }
+
+    const sDate = searchParams.get('startDate');
+    setStartDate(sDate || '');
+    
+    const eDate = searchParams.get('endDate');
+    setEndDate(eDate || '');
   }, [searchParams]);
   const [formData, setFormData] = useState({
     walletId: '',
@@ -122,7 +130,18 @@ export default function TransactionsPage() {
   const filteredTransactions = transactions.filter(t => {
     const passWallet = !selectedWalletId || selectedWalletId === 'all' || t.walletId === selectedWalletId || t.targetWalletId === selectedWalletId;
     const passCategory = !selectedCategoryId || selectedCategoryId === 'all' || t.categoryId === selectedCategoryId;
-    return passWallet && passCategory;
+    
+    let passDate = true;
+    if (startDate) {
+      passDate = passDate && new Date(t.date) >= new Date(startDate);
+    }
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      passDate = passDate && new Date(t.date) <= endOfDay;
+    }
+
+    return passWallet && passCategory && passDate;
   });
 
   const sortedTransactions = [...filteredTransactions].sort(
@@ -326,6 +345,37 @@ export default function TransactionsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2">
+              <Input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (e.target.value) {
+                    searchParams.set('startDate', e.target.value);
+                  } else {
+                    searchParams.delete('startDate');
+                  }
+                  setSearchParams(searchParams);
+                }}
+                className="w-[140px]"
+              />
+              <span className="text-gray-500">-</span>
+              <Input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  if (e.target.value) {
+                    searchParams.set('endDate', e.target.value);
+                  } else {
+                    searchParams.delete('endDate');
+                  }
+                  setSearchParams(searchParams);
+                }}
+                className="w-[140px]"
+              />
+            </div>
             <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
               <ArrowUpRight className="h-4 w-4 mr-2" />
