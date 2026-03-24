@@ -259,7 +259,12 @@ export default function BudgetPage() {
               <div className={`text-2xl font-bold ${totalSpent > totalPlanned ? 'text-red-600' : 'text-green-600'}`}>
                 ${totalSpent.toFixed(0)}
               </div>
-              <Progress value={totalPlanned > 0 ? (totalSpent / totalPlanned) * 100 : 0} className="h-1 mt-2" />
+              <div className="flex items-center gap-3 mt-2">
+                <Progress value={totalPlanned > 0 ? (totalSpent / totalPlanned) * 100 : 0} className="h-1 flex-1" />
+                <span className={`text-[10px] font-bold whitespace-nowrap ${totalPlanned - totalSpent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {totalPlanned - totalSpent >= 0 ? '+' : ''}${(totalPlanned - totalSpent).toFixed(0)}
+                </span>
+              </div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-white to-gray-50">
