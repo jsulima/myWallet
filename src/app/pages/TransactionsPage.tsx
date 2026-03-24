@@ -296,87 +296,7 @@ export default function TransactionsPage() {
             <h1 className="text-3xl font-bold">Transactions</h1>
             <p className="text-gray-600">Track your income and expenses</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Select 
-              value={selectedWalletId} 
-              onValueChange={(value) => {
-                setSelectedWalletId(value);
-                if (value === 'all') {
-                  searchParams.delete('walletId');
-                } else {
-                  searchParams.set('walletId', value);
-                }
-                setSearchParams(searchParams);
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Wallets" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Wallets</SelectItem>
-                {wallets.map((wallet) => (
-                  <SelectItem key={wallet.id} value={wallet.id}>
-                    {wallet.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select 
-              value={selectedCategoryId} 
-              onValueChange={(value) => {
-                setSelectedCategoryId(value);
-                if (value === 'all') {
-                  searchParams.delete('categoryId');
-                } else {
-                  searchParams.set('categoryId', value);
-                }
-                setSearchParams(searchParams);
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <Input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  if (e.target.value) {
-                    searchParams.set('startDate', e.target.value);
-                  } else {
-                    searchParams.delete('startDate');
-                  }
-                  setSearchParams(searchParams);
-                }}
-                className="w-[140px]"
-              />
-              <span className="text-gray-500">-</span>
-              <Input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  if (e.target.value) {
-                    searchParams.set('endDate', e.target.value);
-                  } else {
-                    searchParams.delete('endDate');
-                  }
-                  setSearchParams(searchParams);
-                }}
-                className="w-[140px]"
-              />
-            </div>
-            <div className="flex gap-2">
+          <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
               <ArrowUpRight className="h-4 w-4 mr-2" />
               Transfer
@@ -535,6 +455,89 @@ export default function TransactionsPage() {
             />
           )}
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+            <Select 
+              value={selectedWalletId} 
+              onValueChange={(value) => {
+                setSelectedWalletId(value);
+                if (value === 'all') {
+                  searchParams.delete('walletId');
+                } else {
+                  searchParams.set('walletId', value);
+                }
+                setSearchParams(searchParams);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Wallets" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Wallets</SelectItem>
+                {wallets.map((wallet) => (
+                  <SelectItem key={wallet.id} value={wallet.id}>
+                    {wallet.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select 
+              value={selectedCategoryId} 
+              onValueChange={(value) => {
+                setSelectedCategoryId(value);
+                if (value === 'all') {
+                  searchParams.delete('categoryId');
+                } else {
+                  searchParams.set('categoryId', value);
+                }
+                setSearchParams(searchParams);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+              <Input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (e.target.value) {
+                    searchParams.set('startDate', e.target.value);
+                  } else {
+                    searchParams.delete('startDate');
+                  }
+                  setSearchParams(searchParams);
+                }}
+                className="w-[140px]"
+              />
+              <span className="text-gray-500">-</span>
+              <Input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  if (e.target.value) {
+                    searchParams.set('endDate', e.target.value);
+                  } else {
+                    searchParams.delete('endDate');
+                  }
+                  setSearchParams(searchParams);
+                }}
+                className="w-[140px]"
+              />
+            </div>
+            
         </div>
       </div>
 
