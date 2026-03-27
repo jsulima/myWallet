@@ -27,7 +27,8 @@ describe('TransactionsPage', () => {
       type: 'EXPENSE', 
       amount: 10, 
       description: 'Lunch', 
-      date: new Date().toISOString() 
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     },
     { 
       id: 't2', 
@@ -36,7 +37,8 @@ describe('TransactionsPage', () => {
       type: 'EXPENSE', 
       amount: 20, 
       description: 'Dinner', 
-      date: new Date().toISOString() 
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     },
   ];
 

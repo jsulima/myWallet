@@ -145,7 +145,7 @@ export default function TransactionsPage() {
   });
 
   const sortedTransactions = [...filteredTransactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime()
   );
 
   const incomeTransactions = sortedTransactions.filter(t => t.type === 'INCOME');
@@ -206,7 +206,13 @@ export default function TransactionsPage() {
                       </span>
                     ) : (
                       wallet?.name
-                    )} • {new Date(transaction.date).toLocaleDateString()}
+                    )} • {new Date(transaction.createdAt || transaction.date).toLocaleString([], {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </p>
                 </div>
               </div>
