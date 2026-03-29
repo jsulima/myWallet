@@ -36,6 +36,7 @@ export default function BudgetPage() {
     categoryId: '',
     limit: '',
     status: 'ACTIVE' as 'DRAFT' | 'ACTIVE' | 'FINISHED',
+    note: '',
   });
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function BudgetPage() {
         startDate: new Date(dateRange.startDate).toISOString(),
         endDate: new Date(dateRange.endDate).toISOString(),
         status: formData.status,
+        note: formData.note,
       };
 
       if (editingBudget) {
@@ -75,7 +77,7 @@ export default function BudgetPage() {
 
       setIsOpen(false);
       setEditingBudget(null);
-      setFormData({ categoryId: '', limit: '', status: 'ACTIVE' });
+      setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '' });
     } catch (error: any) {
       toast.error(error.message || t('budget.failSave'));
     } finally {
@@ -89,6 +91,7 @@ export default function BudgetPage() {
       categoryId: budget.categoryId,
       limit: budget.limit.toString(),
       status: budget.status,
+      note: budget.note || '',
     });
     setDateRange({
       startDate: new Date(budget.startDate).toISOString().split('T')[0],
@@ -108,7 +111,8 @@ export default function BudgetPage() {
     setFormData({
         categoryId: '',
         limit: '',
-        status: 'DRAFT'
+        status: 'DRAFT',
+        note: ''
     });
     setEditingBudget(null);
     setIsOpen(true);
@@ -143,7 +147,8 @@ export default function BudgetPage() {
             limit: bp.limit,
             startDate: nextStart.toISOString(),
             endDate: nextEnd.toISOString(),
-            status: 'DRAFT'
+            status: 'DRAFT',
+            note: bp.note
           })
         )
       );
@@ -249,7 +254,7 @@ export default function BudgetPage() {
               setIsOpen(open);
               if (!open) {
                 setEditingBudget(null);
-                setFormData({ categoryId: '', limit: '', status: 'ACTIVE' });
+                setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '' });
               }
             }}>
               <DialogTrigger asChild>
@@ -309,6 +314,16 @@ export default function BudgetPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="note">{t('budget.note')}</Label>
+                    <Input 
+                      id="note" 
+                      placeholder={t('budget.notePlaceholder') || ''} 
+                      value={formData.note} 
+                      onChange={(e) => setFormData({ ...formData, note: e.target.value })} 
+                    />
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -392,6 +407,11 @@ export default function BudgetPage() {
                           <p className="text-[10px] text-gray-400">
                             {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
                           </p>
+                          {bp.note && (
+                            <p className="text-[10px] text-blue-600 mt-1 line-clamp-1 italic">
+                              "{bp.note}"
+                            </p>
+                          )}
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button 
@@ -461,6 +481,11 @@ export default function BudgetPage() {
                           <p className="text-[10px] text-gray-400">
                             {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
                           </p>
+                          {bp.note && (
+                            <p className="text-[10px] text-blue-600 mt-1 line-clamp-1 italic">
+                              "{bp.note}"
+                            </p>
+                          )}
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button

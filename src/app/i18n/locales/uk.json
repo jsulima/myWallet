@@ -94,6 +94,8 @@
     "category": "Категорія",
     "selectCategory": "Оберіть категорію",
     "plannedAmount": "Запланована сума (USD)",
+    "note": "Нотатка / Коментар",
+    "notePlaceholder": "наприклад, 3 процедури, витрати на поїздку",
     "status": "Статус",
     "statusDraft": "Чернетка (Планування)",
     "statusActive": "Активний",

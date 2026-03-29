@@ -94,6 +94,8 @@
     "category": "Category",
     "selectCategory": "Select category",
     "plannedAmount": "Planned Amount (USD)",
+    "note": "Note / Comment",
+    "notePlaceholder": "e.g., 3 procedures, trip expenses",
     "status": "Status",
     "statusDraft": "Draft (Planning)",
     "statusActive": "Active",

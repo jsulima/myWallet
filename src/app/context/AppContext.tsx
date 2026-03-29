@@ -71,6 +71,7 @@ export interface BudgetPlan {
   startDate: string;
   endDate: string;
   status: 'DRAFT' | 'ACTIVE' | 'FINISHED';
+  note?: string;
   category?: Category;
 }
 
@@ -126,8 +127,8 @@ interface AppContextType {
   addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
   payCredit: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => Promise<void>;
   budgetPlans: BudgetPlan[];
-  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) => Promise<void>;
-  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string }) => Promise<void>;
+  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string }) => Promise<void>;
+  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string }) => Promise<void>;
   deleteBudgetPlan: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -340,12 +341,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchAllData();
   };
 
-  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) => {
+  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string }) => {
     const created = await budgetApi.create(budgetPlan);
     setBudgetPlans(prev => [...prev, created]);
   };
 
-  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string }) => {
+  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string }) => {
     const updated = await budgetApi.update(id, budgetPlan);
     setBudgetPlans(prev => prev.map(bp => bp.id === id ? updated : bp));
   };
