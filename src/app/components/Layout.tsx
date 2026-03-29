@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Button } from './ui/button';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,6 +21,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { user, logout } = useApp();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     logout();
@@ -26,12 +29,12 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const navItems = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/transactions', icon: Receipt, label: 'Transactions' },
-    { to: '/categories', icon: Tag, label: 'Categories' },
-    { to: '/savings', icon: PiggyBank, label: 'Savings' },
-    { to: '/credits', icon: CreditCard, label: 'Credits' },
-    { to: '/budget', icon: Calendar, label: 'Budget' },
+    { to: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
+    { to: '/transactions', icon: Receipt, label: t('nav.transactions') },
+    { to: '/categories', icon: Tag, label: t('nav.categories') },
+    { to: '/savings', icon: PiggyBank, label: t('nav.savings') },
+    { to: '/credits', icon: CreditCard, label: t('nav.credits') },
+    { to: '/budget', icon: Calendar, label: t('nav.budget') },
   ];
 
   return (
@@ -51,9 +54,10 @@ export default function Layout({ children }: LayoutProps) {
               <span className="text-sm text-gray-600 hidden sm:inline">
                 {user?.email}
               </span>
+              <LanguageSwitcher />
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                {t('nav.logout')}
               </Button>
             </div>
           </div>

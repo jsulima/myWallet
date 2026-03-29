@@ -24,9 +24,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
+import { useTranslation } from 'react-i18next';
 
 export default function TransactionsPage() {
   const { transactions, wallets, categories, addTransaction, deleteTransaction } = useApp();
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
@@ -159,7 +161,7 @@ export default function TransactionsPage() {
     <div className="space-y-3">
       {items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">No transactions yet</p>
+          <p className="text-gray-500">{t('transactions.noTransactions')}</p>
         </div>
       ) : (
         items.map((transaction) => {
@@ -192,7 +194,7 @@ export default function TransactionsPage() {
                     <p className="font-medium">{category?.name}</p>
                     {transaction.type === 'TRANSFER' && (
                       <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100 font-medium">
-                        Transfer
+                        {t('transactions.transfer')}
                       </span>
                     )}
                   </div>
@@ -261,14 +263,13 @@ export default function TransactionsPage() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('transactions.deleteTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the
-                        transaction and update your wallet balance.
+                        {t('transactions.deleteDescription')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-red-600 hover:bg-red-700"
                         onClick={async () => {
@@ -298,30 +299,30 @@ export default function TransactionsPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">Transactions</h1>
-          <p className="text-gray-600">Track your income and expenses</p>
+          <h1 className="text-3xl font-bold">{t('transactions.title')}</h1>
+          <p className="text-gray-600">{t('transactions.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
             <Button variant="outline" onClick={() => setIsTransferOpen(true)}>
               <ArrowUpRight className="h-4 w-4 mr-2" />
-              Transfer
+              {t('transactions.transfer')}
             </Button>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Transaction
+                  {t('transactions.addTransaction')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                <DialogTitle>Add Transaction</DialogTitle>
+                <DialogTitle>{t('transactions.addTransaction')}</DialogTitle>
                 <DialogDescription>
-                  Add a new transaction to your wallet.
+                  {t('transactions.addDescription')}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Type</Label>
+                  <Label>{t('transactions.type')}</Label>
                   <Tabs
                     value={formData.type}
                     onValueChange={(value) =>
@@ -329,18 +330,18 @@ export default function TransactionsPage() {
                     }
                   >
                     <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="EXPENSE">Expense</TabsTrigger>
-                      <TabsTrigger value="INCOME">Income</TabsTrigger>
-                      <TabsTrigger value="TRANSFER">Transfer</TabsTrigger>
+                      <TabsTrigger value="EXPENSE">{t('transactions.expense')}</TabsTrigger>
+                      <TabsTrigger value="INCOME">{t('transactions.income')}</TabsTrigger>
+                      <TabsTrigger value="TRANSFER">{t('transactions.transfer')}</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
 
                 <div>
-                  <Label htmlFor="wallet">Wallet</Label>
+                  <Label htmlFor="wallet">{t('transactions.wallet')}</Label>
                   <Select value={formData.walletId} onValueChange={(value) => setFormData({ ...formData, walletId: value })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select wallet" />
+                      <SelectValue placeholder={t('transactions.selectWallet')} />
                     </SelectTrigger>
                     <SelectContent>
                       {wallets.map((wallet) => (
@@ -353,10 +354,10 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">{t('transactions.category')}</Label>
                   <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder={t('transactions.selectCategory')} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories
@@ -373,13 +374,13 @@ export default function TransactionsPage() {
                 {formData.type === 'TRANSFER' && (
                   <>
                     <div>
-                      <Label htmlFor="target-wallet">Target Wallet</Label>
+                      <Label htmlFor="target-wallet">{t('transactions.targetWallet')}</Label>
                       <Select 
                         value={formData.targetWalletId} 
                         onValueChange={(value) => setFormData({ ...formData, targetWalletId: value })}
                       >
                         <SelectTrigger id="target-wallet">
-                          <SelectValue placeholder="Select target wallet" />
+                          <SelectValue placeholder={t('transactions.selectTargetWallet')} />
                         </SelectTrigger>
                         <SelectContent>
                           {wallets
@@ -394,7 +395,7 @@ export default function TransactionsPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="target-amount">Target Amount</Label>
+                      <Label htmlFor="target-amount">{t('transactions.targetAmount')}</Label>
                       <Input
                         id="target-amount"
                         type="number"
@@ -409,7 +410,7 @@ export default function TransactionsPage() {
                 )}
 
                 <div>
-                  <Label htmlFor="amount">Amount</Label>
+                  <Label htmlFor="amount">{t('transactions.amount')}</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -422,11 +423,11 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('transactions.description')}</Label>
                   <Input
                     id="description"
                     type="text"
-                    placeholder="e.g., Grocery shopping"
+                    placeholder={t('transactions.placeholderDesc')}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     required
@@ -434,7 +435,7 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date">{t('transactions.date')}</Label>
                   <Input
                     id="date"
                     type="date"
@@ -445,7 +446,7 @@ export default function TransactionsPage() {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Adding...' : 'Add Transaction'}
+                  {isLoading ? t('transactions.adding') : t('transactions.addTransaction')}
                 </Button>
               </form>
             </DialogContent>
@@ -475,10 +476,10 @@ export default function TransactionsPage() {
               }}
             >
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Wallets" />
+                <SelectValue placeholder={t('transactions.allWallets')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Wallets</SelectItem>
+                <SelectItem value="all">{t('transactions.allWallets')}</SelectItem>
                 {wallets.map((wallet) => (
                   <SelectItem key={wallet.id} value={wallet.id}>
                     {wallet.name}
@@ -499,10 +500,10 @@ export default function TransactionsPage() {
               }}
             >
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Categories" />
+                <SelectValue placeholder={t('transactions.allCategories')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">{t('transactions.allCategories')}</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.name}
@@ -548,10 +549,10 @@ export default function TransactionsPage() {
           <CardContent className="pt-6">
             <Tabs defaultValue="all">
               <TabsList className="grid w-full grid-cols-4 mb-6">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="income">Income</TabsTrigger>
-                <TabsTrigger value="expense">Expenses</TabsTrigger>
-                <TabsTrigger value="transfer">Transfers</TabsTrigger>
+                <TabsTrigger value="all">{t('transactions.all')}</TabsTrigger>
+                <TabsTrigger value="income">{t('transactions.income')}</TabsTrigger>
+                <TabsTrigger value="expense">{t('transactions.expenses')}</TabsTrigger>
+                <TabsTrigger value="transfer">{t('transactions.transfers')}</TabsTrigger>
               </TabsList>
               <TabsContent value="all">
                 <TransactionList items={sortedTransactions} />

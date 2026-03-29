@@ -30,10 +30,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { currencyApi } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardPage() {
   const { user, wallets, transactions, savingPlaces, categories, budgetPlans } = useApp();
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
+  const { t } = useTranslation();
 
   useEffect(() => {
     currencyApi.getRates().then(setRates).catch(console.error);
@@ -156,33 +158,33 @@ export default function DashboardPage() {
       <div className="space-y-6">
         {/* Welcome Section and Quick Actions */}
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
-          <p className="text-gray-600">Here's your financial overview</p>
+          <h1 className="text-3xl font-bold">{t('dashboard.welcome', { name: user?.name })}</h1>
+          <p className="text-gray-600">{t('dashboard.overview')}</p>
 
           {/* Quick Actions at Top Row */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 mt-2 justify-end">
             <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
               <Link to="/transactions">
                 <Plus className="h-4 w-4 mr-2" />
-                Transaction
+                {t('nav.transactions')}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
               <Link to="/savings">
                 <PiggyBank className="h-4 w-4 mr-2" />
-                Savings
+                {t('nav.savings')}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
               <Link to="/credits">
                 <CreditCard className="h-4 w-4 mr-2" />
-                Credit
+                {t('nav.credits')}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="whitespace-nowrap shadow-sm bg-white">
               <Link to="/budget">
                 <Calendar className="h-4 w-4 mr-2" />
-                Budget
+                {t('nav.budget')}
               </Link>
             </Button>
           </div>
@@ -192,7 +194,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Balance</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{t('dashboard.totalBalance')}</CardTitle>
               <Wallet className="h-4 w-4 text-gray-600" />
             </CardHeader>
             <CardContent>
@@ -204,7 +206,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                {hasBudgetPeriod ? 'Period Income' : 'Monthly Income'}
+                {hasBudgetPeriod ? t('dashboard.periodIncome') : t('dashboard.monthlyIncome')}
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
@@ -217,7 +219,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                {hasBudgetPeriod ? 'Period Expenses' : 'Monthly Expenses'}
+                {hasBudgetPeriod ? t('dashboard.periodExpenses') : t('dashboard.monthlyExpenses')}
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
@@ -229,7 +231,7 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Savings Goals</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{t('dashboard.savingsGoals')}</CardTitle>
               <PiggyBank className="h-4 w-4 text-gray-600" />
             </CardHeader>
             <CardContent>
@@ -245,8 +247,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-0 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Budget Usage</CardTitle>
-                <p className="text-xs text-gray-500 mt-1">Percentage of budget spent</p>
+                <CardTitle className="text-lg">{t('dashboard.budgetUsage')}</CardTitle>
               </div>
               <BarChart3 className="h-4 w-4 text-gray-400" />
             </CardHeader>
@@ -315,8 +316,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-0 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Expenses Breakdown</CardTitle>
-                <p className="text-xs text-gray-500 mt-1">{hasBudgetPeriod ? `Active period: ${periodLabel}` : 'This month\'s expenses by category'}</p>
+                <CardTitle className="text-lg">{t('dashboard.expensesBreakdown')}</CardTitle>
               </div>
               <BarChart3 className="h-4 w-4 text-gray-400 rotate-90" />
             </CardHeader>
@@ -374,7 +374,7 @@ export default function DashboardPage() {
           {/* Wallets */}
           <Card>
             <CardHeader>
-              <CardTitle>My Wallets</CardTitle>
+              <CardTitle>{t('dashboard.myWallets')}</CardTitle>
             </CardHeader>
             <CardContent>
               {wallets.length === 0 ? (
@@ -416,7 +416,7 @@ export default function DashboardPage() {
           {/* Recent Transactions */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
+              <CardTitle>{t('dashboard.recentTransactions')}</CardTitle>
             </CardHeader>
             <CardContent>
               {recentTransactions.length === 0 ? (

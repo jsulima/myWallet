@@ -4,11 +4,13 @@ import {
   budgetApi, savingApi, creditApi,
   setToken, clearToken,
 } from '../services/api';
+import i18n from '../i18n/config';
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  language?: string;
 }
 
 export interface Wallet {
@@ -78,6 +80,7 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
+  updateLanguage: (language: string) => Promise<void>;
   wallets: Wallet[];
   addWallet: (wallet: Omit<Wallet, 'id'>) => Promise<void>;
   updateWallet: (id: string, wallet: Partial<Wallet>) => Promise<void>;
@@ -169,6 +172,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       authApi.getMe()
         .then((userData) => {
           setUser(userData);
+          if (userData.language && userData.language !== i18n.language) {
+            i18n.changeLanguage(userData.language);
+          }
           return fetchAllData();
         })
         .catch(() => {
@@ -184,6 +190,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const result = await authApi.login({ email, password });
     setToken(result.token);
     setUser(result.user);
+    if (result.user.language && result.user.language !== i18n.language) {
+      i18n.changeLanguage(result.user.language);
+    }
     await fetchAllData();
   };
 
@@ -191,6 +200,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const result = await authApi.register({ email, password, name });
     setToken(result.token);
     setUser(result.user);
+    if (result.user.language && result.user.language !== i18n.language) {
+      i18n.changeLanguage(result.user.language);
+    }
     await fetchAllData();
   };
 
@@ -203,6 +215,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavingPlaces([]);
     setCredits([]);
     setBudgetPlans([]);
+  };
+
+  const updateLanguage = async (language: string) => {
+    if (user) {
+      try {
+        const updatedUser = await authApi.updateProfile({ language });
+        setUser(updatedUser);
+        i18n.changeLanguage(language);
+      } catch (error) {
+        console.error("Failed to update language profile", error);
+      }
+    } else {
+      i18n.changeLanguage(language);
+    }
   };
 
   const addWallet = async (wallet: Omit<Wallet, 'id'>) => {
@@ -336,6 +362,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        updateLanguage,
         wallets,
         addWallet,
         updateWallet,

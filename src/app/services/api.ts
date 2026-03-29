@@ -64,6 +64,12 @@ export const authApi = {
     }),
 
   getMe: () => request<any>('/auth/me'),
+
+  updateProfile: (data: { language?: string }) =>
+    request<any>('/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Wallets
