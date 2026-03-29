@@ -24,6 +24,7 @@ export default function CreditsPage() {
     remainingAmount: '',
     interestRate: '',
     monthlyPayment: '',
+    currency: 'USD',
     dueDate: '',
   });
 
@@ -45,12 +46,13 @@ export default function CreditsPage() {
         remainingAmount: parseFloat(formData.remainingAmount),
         interestRate: parseFloat(formData.interestRate),
         monthlyPayment: parseFloat(formData.monthlyPayment),
+        currency: formData.currency,
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : '',
       });
 
       toast.success(t('credits.successAdd'));
       setIsOpen(false);
-      setFormData({ name: '', totalAmount: '', remainingAmount: '', interestRate: '', monthlyPayment: '', dueDate: '' });
+      setFormData({ name: '', totalAmount: '', remainingAmount: '', interestRate: '', monthlyPayment: '', currency: 'USD', dueDate: '' });
     } catch (error: any) {
       toast.error(error.message || t('credits.failAdd'));
     } finally {
@@ -92,12 +94,22 @@ export default function CreditsPage() {
     setPayingCreditId(credit.id);
   };
 
-  const getTotalDebt = () => {
-    return credits.reduce((sum, credit) => sum + (credit.remainingAmount ?? 0), 0);
+  const getDebtByCurrency = () => {
+    return credits.reduce((acc, credit) => {
+      const cur = credit.currency || 'USD';
+      if (!acc[cur]) acc[cur] = 0;
+      acc[cur] += (credit.remainingAmount ?? 0);
+      return acc;
+    }, {} as Record<string, number>);
   };
 
-  const getTotalMonthlyPayment = () => {
-    return credits.reduce((sum, credit) => sum + (credit.monthlyPayment ?? 0), 0);
+  const getMonthlyByCurrency = () => {
+    return credits.reduce((acc, credit) => {
+      const cur = credit.currency || 'USD';
+      if (!acc[cur]) acc[cur] = 0;
+      acc[cur] += (credit.monthlyPayment ?? 0);
+      return acc;
+    }, {} as Record<string, number>);
   };
 
   return (
@@ -132,10 +144,24 @@ export default function CreditsPage() {
                     value={formData.totalAmount} onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })} required />
                 </div>
 
-                <div>
-                  <Label htmlFor="remainingAmount">{t('credits.remainingAmount')}</Label>
-                  <Input id="remainingAmount" type="number" step="0.01" placeholder="0.00"
-                    value={formData.remainingAmount} onChange={(e) => setFormData({ ...formData, remainingAmount: e.target.value })} required />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="remainingAmount">{t('credits.remainingAmount')}</Label>
+                    <Input id="remainingAmount" type="number" step="0.01" placeholder="0.00"
+                      value={formData.remainingAmount} onChange={(e) => setFormData({ ...formData, remainingAmount: e.target.value })} required />
+                  </div>
+                  <div>
+                    <Label htmlFor="currency">{t('wallet.currency')}</Label>
+                    <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                      <SelectTrigger id="currency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="UAH">UAH (₴)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div>
@@ -173,7 +199,11 @@ export default function CreditsPage() {
                 <AlertCircle className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">${getTotalDebt().toFixed(2)}</div>
+                {Object.entries(getDebtByCurrency()).map(([cur, amount]) => (
+                  <div key={cur} className="text-2xl font-bold text-red-600">
+                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{amount.toFixed(0)}
+                  </div>
+                ))}
                 <p className="text-xs text-gray-600 mt-1">{t('credits.activeCredits', { count: credits.length })}</p>
               </CardContent>
             </Card>
@@ -184,7 +214,11 @@ export default function CreditsPage() {
                 <CreditCard className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${getTotalMonthlyPayment().toFixed(2)}</div>
+                {Object.entries(getMonthlyByCurrency()).map(([cur, amount]) => (
+                  <div key={cur} className="text-2xl font-bold">
+                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{amount.toFixed(0)}
+                  </div>
+                ))}
                 <p className="text-xs text-gray-600 mt-1">{t('credits.totalPerMonth')}</p>
               </CardContent>
             </Card>
@@ -232,12 +266,14 @@ export default function CreditsPage() {
                       <div>
                         <p className="text-sm text-gray-600">{t('credits.remaining')}</p>
                         <p className="text-lg font-bold text-red-600">
-                          ${(credit.remainingAmount ?? 0).toFixed(2)}
+                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{(credit.remainingAmount ?? 0).toFixed(0)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">{t('credits.total')}</p>
-                        <p className="text-lg font-bold">${credit.totalAmount.toFixed(2)}</p>
+                        <p className="text-lg font-bold">
+                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{credit.totalAmount.toFixed(0)}
+                        </p>
                       </div>
                     </div>
 
@@ -245,7 +281,9 @@ export default function CreditsPage() {
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="text-sm text-gray-600">{t('credits.monthlyPayment')}</p>
-                          <p className="font-semibold">${(credit.monthlyPayment ?? 0).toFixed(2)}</p>
+                          <p className="font-semibold">
+                            {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{(credit.monthlyPayment ?? 0).toFixed(0)}
+                          </p>
                         </div>
                         {credit.dueDate && (
                           <div className="text-right">

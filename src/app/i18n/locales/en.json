@@ -93,7 +93,7 @@
     "endDate": "End Date",
     "category": "Category",
     "selectCategory": "Select category",
-    "plannedAmount": "Planned Amount (USD)",
+    "plannedAmount": "Planned Amount",
     "note": "Note / Comment",
     "notePlaceholder": "e.g., 3 procedures, trip expenses",
     "status": "Status",

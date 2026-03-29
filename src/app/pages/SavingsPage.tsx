@@ -3,6 +3,7 @@ import { Plus, PiggyBank, TrendingUp } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Progress } from '../components/ui/progress';
@@ -23,6 +24,7 @@ export default function SavingsPage() {
     name: '',
     targetAmount: '',
     currentAmount: '',
+    currency: 'USD',
     deadline: '',
   });
 
@@ -35,12 +37,13 @@ export default function SavingsPage() {
         name: formData.name,
         targetAmount: parseFloat(formData.targetAmount),
         currentAmount: parseFloat(formData.currentAmount) || 0,
+        currency: formData.currency,
         deadline: formData.deadline ? new Date(formData.deadline).toISOString() : undefined,
       });
 
       toast.success(t('savings.successAdd'));
       setIsOpen(false);
-      setFormData({ name: '', targetAmount: '', currentAmount: '', deadline: '' });
+      setFormData({ name: '', targetAmount: '', currentAmount: '', currency: 'USD', deadline: '' });
     } catch (error: any) {
       toast.error(error.message || t('savings.failAdd'));
     } finally {
@@ -66,28 +69,45 @@ export default function SavingsPage() {
       });
 
       toast.success(t('savings.successMoney'));
-      setIsAddMoneyOpen(false);
-      setSelectedSaving(null);
       setAddMoneyAmount('');
     } catch (error: any) {
       toast.error(error.message || t('savings.failMoney'));
     }
   };
 
+  // Calculate summary by currency
+  const summaryByCurrency = savingPlaces.reduce((acc, s) => {
+    const cur = s.currency || 'USD';
+    if (!acc[cur]) acc[cur] = 0;
+    acc[cur] += s.currentAmount;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">{t('savings.title')}</h1>
-          <p className="text-gray-600">{t('savings.subtitle')}</p>
-          <div className="flex items-center gap-2 mt-2 justify-end">
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('savings.addGoal')}
-                </Button>
-              </DialogTrigger>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-3xl font-bold">{t('savings.title')}</h1>
+            <p className="text-gray-600">{t('savings.subtitle')}</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+             {Object.entries(summaryByCurrency).map(([cur, total]) => (
+               <Card key={cur} className="px-4 py-2 bg-blue-50 border-blue-100">
+                 <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">{t('dashboard.savings')}</p>
+                 <p className="text-lg font-bold text-blue-900">
+                   {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{total.toFixed(0)}
+                 </p>
+               </Card>
+             ))}
+             <Dialog open={isOpen} onOpenChange={setIsOpen}>
+               <DialogTrigger asChild>
+                 <Button>
+                   <Plus className="h-4 w-4 mr-2" />
+                   {t('savings.addGoal')}
+                 </Button>
+               </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{t('savings.createGoal')}</DialogTitle>
@@ -119,16 +139,30 @@ export default function SavingsPage() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="currentAmount">{t('savings.currentAmount')}</Label>
-                  <Input
-                    id="currentAmount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.currentAmount}
-                    onChange={(e) => setFormData({ ...formData, currentAmount: e.target.value })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="currentAmount">{t('savings.currentAmount')}</Label>
+                    <Input
+                      id="currentAmount"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.currentAmount}
+                      onChange={(e) => setFormData({ ...formData, currentAmount: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="currency">{t('wallet.currency')}</Label>
+                    <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                      <SelectTrigger id="currency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="UAH">UAH (₴)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div>
@@ -193,13 +227,13 @@ export default function SavingsPage() {
                       <div>
                         <p className="text-sm text-gray-600">{t('savings.current')}</p>
                         <p className="text-lg font-bold">
-                          ${saving.currentAmount.toFixed(2)}
+                          {saving.currency === 'USD' ? '$' : saving.currency === 'UAH' ? '₴' : saving.currency}{saving.currentAmount.toFixed(0)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">{t('savings.target')}</p>
                         <p className="text-lg font-bold">
-                          ${saving.targetAmount.toFixed(2)}
+                          {saving.currency === 'USD' ? '$' : saving.currency === 'UAH' ? '₴' : saving.currency}{saving.targetAmount.toFixed(0)}
                         </p>
                       </div>
                     </div>

@@ -37,18 +37,31 @@ export default function BudgetPage() {
     limit: '',
     status: 'ACTIVE' as 'DRAFT' | 'ACTIVE' | 'FINISHED',
     note: '',
+    currency: 'USD',
   });
 
   useEffect(() => {
     currencyApi.getRates().then(setRates).catch(console.error);
   }, []);
 
-  const convertToUSD = (amount: number, currency: string) => {
-    if (currency === 'USD') return amount;
-    const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
-    if (rateEntry) return amount * rateEntry.rate;
-    if (currency === 'UAH') return amount / 40;
-    return amount;
+  const convertCurrency = (amount: number, from: string, to: string) => {
+    if (from === to) return amount;
+    
+    // Normalization to USD first
+    let amountInUSD = amount;
+    if (from !== 'USD') {
+      const fromRate = rates.find(r => r.from === from && r.to === 'USD');
+      if (fromRate) amountInUSD = amount * fromRate.rate;
+      else if (from === 'UAH') amountInUSD = amount / 40; // Fallback
+    }
+
+    if (to === 'USD') return amountInUSD;
+    
+    const toRate = rates.find(r => r.from === 'USD' && r.to === to);
+    if (toRate) return amountInUSD * toRate.rate;
+    if (to === 'UAH') return amountInUSD * 40; // Fallback
+    
+    return amountInUSD;
   };
 
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
@@ -65,6 +78,7 @@ export default function BudgetPage() {
         endDate: new Date(dateRange.endDate).toISOString(),
         status: formData.status,
         note: formData.note,
+        currency: formData.currency,
       };
 
       if (editingBudget) {
@@ -77,7 +91,7 @@ export default function BudgetPage() {
 
       setIsOpen(false);
       setEditingBudget(null);
-      setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '' });
+      setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD' });
     } catch (error: any) {
       toast.error(error.message || t('budget.failSave'));
     } finally {
@@ -92,6 +106,7 @@ export default function BudgetPage() {
       limit: budget.limit.toString(),
       status: budget.status,
       note: budget.note || '',
+      currency: budget.currency || 'USD',
     });
     setDateRange({
       startDate: new Date(budget.startDate).toISOString().split('T')[0],
@@ -112,7 +127,8 @@ export default function BudgetPage() {
         categoryId: '',
         limit: '',
         status: 'DRAFT',
-        note: ''
+        note: '',
+        currency: 'USD'
     });
     setEditingBudget(null);
     setIsOpen(true);
@@ -188,7 +204,7 @@ export default function BudgetPage() {
     }
   };
 
-  const getSpentAmount = (categoryId: string, startStr: string, endStr: string) => {
+  const getSpentAmount = (categoryId: string, startStr: string, endStr: string, budgetCurrency: string) => {
     const start = new Date(startStr);
     const end = new Date(endStr);
     
@@ -203,7 +219,7 @@ export default function BudgetPage() {
       })
       .reduce((sum, t) => {
         const wallet = getWalletById(t.walletId);
-        return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
+        return sum + convertCurrency(t.amount, wallet?.currency || 'USD', budgetCurrency);
       }, 0);
   };
 
@@ -211,7 +227,7 @@ export default function BudgetPage() {
     .filter(bp => bp.status === 'ACTIVE')
     .map(bp => ({
       ...bp,
-      spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate),
+      spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD'),
     }))
     .sort((a, b) => b.limit - a.limit);
 
@@ -219,12 +235,21 @@ export default function BudgetPage() {
     .filter(bp => bp.status === 'DRAFT')
     .map(bp => ({
       ...bp,
-      spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate),
+      spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD'),
     }))
     .sort((a, b) => b.limit - a.limit);
 
-  const totalPlanned = activeBudgets.reduce((sum, bp) => sum + bp.limit, 0);
-  const totalSpent = activeBudgets.reduce((sum, bp) => sum + bp.spentAmount, 0);
+  // Grouped totals for summary cards
+  const summaryByCurrency = activeBudgets.reduce((acc, bp) => {
+    const cur = bp.currency || 'USD';
+    if (!acc[cur]) {
+      acc[cur] = { planned: 0, spent: 0 };
+    }
+    acc[cur].planned += bp.limit;
+    acc[cur].spent += bp.spentAmount;
+    return acc;
+  }, {} as Record<string, { planned: number; spent: number }>);
+
   const overBudgetCount = activeBudgets.filter(bp => bp.spentAmount > bp.limit).length;
 
   return (
@@ -254,7 +279,7 @@ export default function BudgetPage() {
               setIsOpen(open);
               if (!open) {
                 setEditingBudget(null);
-                setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '' });
+                setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD' });
               }
             }}>
               <DialogTrigger asChild>
@@ -302,6 +327,21 @@ export default function BudgetPage() {
                       <Input id="limit" type="number" step="0.01" value={formData.limit} onChange={(e) => setFormData({ ...formData, limit: e.target.value })} required />
                     </div>
                     <div>
+                      <Label htmlFor="currency">{t('wallet.currency')}</Label>
+                      <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                        <SelectTrigger id="currency">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="UAH">UAH (₴)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
                       <Label htmlFor="status">{t('budget.status')}</Label>
                       <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
                         <SelectTrigger id="status">
@@ -342,7 +382,12 @@ export default function BudgetPage() {
               <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.totalActive')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalPlanned.toFixed(0)}</div>
+              {Object.entries(summaryByCurrency).map(([cur, data]) => (
+                <div key={cur} className="text-2xl font-bold">
+                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{data.planned.toFixed(0)}
+                </div>
+              ))}
+              {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold">$0</div>}
               <p className="text-xs text-gray-400 mt-1">{t('budget.acrossPeriods')}</p>
             </CardContent>
           </Card>
@@ -351,15 +396,21 @@ export default function BudgetPage() {
               <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.spentSoFar')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${totalSpent > totalPlanned ? 'text-red-600' : 'text-green-600'}`}>
-                ${totalSpent.toFixed(0)}
-              </div>
-              <div className="flex items-center gap-3 mt-2">
-                <Progress value={totalPlanned > 0 ? (totalSpent / totalPlanned) * 100 : 0} className="h-1 flex-1" />
-                <span className={`text-[10px] font-bold whitespace-nowrap ${totalPlanned - totalSpent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {totalPlanned - totalSpent >= 0 ? '+' : ''}${(totalPlanned - totalSpent).toFixed(0)}
-                </span>
-              </div>
+              {Object.entries(summaryByCurrency).map(([cur, data]) => (
+                <div key={cur} className={`text-2xl font-bold ${data.spent > data.planned ? 'text-red-600' : 'text-green-600'}`}>
+                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{data.spent.toFixed(0)}
+                </div>
+              ))}
+              {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
+              
+              {Object.entries(summaryByCurrency).map(([cur, data]) => (
+                <div key={cur} className="flex items-center gap-3 mt-2">
+                  <Progress value={data.planned > 0 ? (data.spent / data.planned) * 100 : 0} className="h-1 flex-1" />
+                  <span className={`text-[10px] font-bold whitespace-nowrap ${data.planned - data.spent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{Math.abs(data.planned - data.spent).toFixed(0)} {data.planned - data.spent >= 0 ? t('budget.left') : t('budget.over')}
+                  </span>
+                </div>
+              ))}
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-white to-gray-50">
@@ -376,7 +427,18 @@ export default function BudgetPage() {
               <CardTitle className="text-xs font-semibold text-blue-500 uppercase tracking-wider">{t('budget.totalDraft')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">${draftBudgets.reduce((sum, bp) => sum + bp.limit, 0).toFixed(0)}</div>
+              {Object.entries(
+                draftBudgets.reduce((acc, bp) => {
+                  const cur = bp.currency || 'USD';
+                  acc[cur] = (acc[cur] || 0) + bp.limit;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).map(([cur, total]) => (
+                <div key={cur} className="text-2xl font-bold text-blue-600">
+                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{total.toFixed(0)}
+                </div>
+              ))}
+              {draftBudgets.length === 0 && <div className="text-2xl font-bold text-blue-600">$0</div>}
               <p className="text-xs text-gray-400 mt-1">{draftBudgets.length === 1 ? t('budget.draftItemPending') : t('budget.draftItemsPending', { count: draftBudgets.length })}</p>
             </CardContent>
           </Card>
@@ -435,12 +497,12 @@ export default function BudgetPage() {
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs mb-1 items-center">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">${bp.spentAmount.toFixed(0)}</span>
+                            <span className="font-medium">{bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.spentAmount.toFixed(0)}</span>
                             <span className={`text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${bp.limit - bp.spentAmount >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                              {bp.limit - bp.spentAmount >= 0 ? t('budget.left') : t('budget.over')}${Math.abs(bp.limit - bp.spentAmount).toFixed(0)}
+                              {bp.limit - bp.spentAmount >= 0 ? t('budget.left') : t('budget.over')}{bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{Math.abs(bp.limit - bp.spentAmount).toFixed(0)}
                             </span>
                           </div>
-                          <span className="text-gray-400">{t('budget.of')} ${bp.limit.toFixed(0)}</span>
+                          <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
                         </div>
                         <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
                       </div>

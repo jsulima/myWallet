@@ -50,6 +50,7 @@ export interface SavingPlace {
   name: string;
   targetAmount: number;
   currentAmount: number;
+  currency: string;
   deadline?: string;
 }
 
@@ -61,6 +62,7 @@ export interface Credit {
   paidAmount: number;
   interestRate: number;
   monthlyPayment: number;
+  currency: string;
   dueDate: string;
 }
 
@@ -72,6 +74,7 @@ export interface BudgetPlan {
   endDate: string;
   status: 'DRAFT' | 'ACTIVE' | 'FINISHED';
   note?: string;
+  currency: string;
   category?: Category;
 }
 
@@ -121,14 +124,14 @@ interface AppContextType {
     date?: string;
   }) => Promise<void>;
   savingPlaces: SavingPlace[];
-  addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => Promise<void>;
+  addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; currency?: string; deadline?: string }) => Promise<void>;
   updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
   credits: Credit[];
-  addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
+  addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; currency?: string; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
   payCredit: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => Promise<void>;
   budgetPlans: BudgetPlan[];
-  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string }) => Promise<void>;
-  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string }) => Promise<void>;
+  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string }) => Promise<void>;
+  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string }) => Promise<void>;
   deleteBudgetPlan: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -320,7 +323,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchAllData();
   };
 
-  const addSavingPlace = async (savingPlace: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) => {
+  const addSavingPlace = async (savingPlace: { name: string; targetAmount: number; currentAmount?: number; currency?: string; deadline?: string }) => {
     const created = await savingApi.create(savingPlace);
     setSavingPlaces(prev => [...prev, created]);
   };
@@ -330,7 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavingPlaces(prev => prev.map(sp => sp.id === id ? updated : sp));
   };
 
-  const addCredit = async (credit: { name: string; totalAmount: number; remainingAmount: number; interestRate: number; monthlyPayment: number; dueDate: string }) => {
+  const addCredit = async (credit: { name: string; totalAmount: number; remainingAmount: number; currency?: string; interestRate: number; monthlyPayment: number; dueDate: string }) => {
     const created = await creditApi.create(credit);
     setCredits(prev => [...prev, created]);
   };
@@ -341,12 +344,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchAllData();
   };
 
-  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string }) => {
+  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string }) => {
     const created = await budgetApi.create(budgetPlan);
     setBudgetPlans(prev => [...prev, created]);
   };
 
-  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string }) => {
+  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string }) => {
     const updated = await budgetApi.update(id, budgetPlan);
     setBudgetPlans(prev => prev.map(bp => bp.id === id ? updated : bp));
   };

@@ -41,6 +41,18 @@ export default function DashboardPage() {
     currencyApi.getRates().then(setRates).catch(console.error);
   }, []);
 
+  const balanceByCurrency = wallets.reduce((acc, wallet) => {
+    const cur = wallet.currency || 'USD';
+    acc[cur] = (acc[cur] || 0) + wallet.balance;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const getCurrencySymbol = (cur: string) => {
+    if (cur === 'USD') return '$';
+    if (cur === 'UAH') return '₴';
+    return cur;
+  };
+
   const convertToUSD = (amount: number, currency: string) => {
     if (currency === 'USD') return amount;
     const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
@@ -50,10 +62,6 @@ export default function DashboardPage() {
     if (currency === 'UAH') return amount / 40;
     return amount;
   };
-
-  const totalBalance = wallets.reduce((sum, wallet) => {
-    return sum + convertToUSD(wallet.balance, wallet.currency);
-  }, 0);
 
   const recentTransactions = [...transactions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -83,19 +91,25 @@ export default function DashboardPage() {
     return d >= periodStart && d <= periodEnd;
   });
 
-  const periodIncome = periodTransactions
+  const periodIncomeByCurrency = periodTransactions
     .filter(t => t.type === 'INCOME' && !t.transferId)
-    .reduce((sum, t) => {
+    .reduce((acc, t) => {
       const wallet = getWalletById(t.walletId);
-      return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
-    }, 0);
+      const cur = wallet?.currency || 'USD';
+      acc[cur] = (acc[cur] || 0) + t.amount;
+      return acc;
+    }, {} as Record<string, number>);
 
-  const periodExpenses = periodTransactions
+  const periodExpensesByCurrency = periodTransactions
     .filter(t => t.type === 'EXPENSE' && !t.transferId)
-    .reduce((sum, t) => {
+    .reduce((acc, t) => {
       const wallet = getWalletById(t.walletId);
-      return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
-    }, 0);
+      const cur = wallet?.currency || 'USD';
+      acc[cur] = (acc[cur] || 0) + t.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+  // For charts, we still need normalized USD values to compare fairly
 
   // Prepare Budget Chart Data
   const budgetData = budgetPlans
@@ -198,8 +212,13 @@ export default function DashboardPage() {
               <Wallet className="h-4 w-4 text-gray-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalBalance.toFixed(2)}</div>
-              <p className="text-xs text-gray-600 mt-1">{wallets.length} wallet(s)</p>
+              {Object.entries(balanceByCurrency).map(([cur, amount]) => (
+                <div key={cur} className="text-2xl font-bold">
+                  {getCurrencySymbol(cur)}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+              ))}
+              {Object.keys(balanceByCurrency).length === 0 && <div className="text-2xl font-bold">$0</div>}
+              <p className="text-xs text-gray-600 mt-1">{wallets.length} {t('dashboard.myWallets')}</p>
             </CardContent>
           </Card>
 
@@ -211,7 +230,12 @@ export default function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${periodIncome.toFixed(2)}</div>
+              {Object.entries(periodIncomeByCurrency).map(([cur, amount]) => (
+                <div key={cur} className="text-2xl font-bold text-green-600">
+                  {getCurrencySymbol(cur)}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+              ))}
+              {Object.keys(periodIncomeByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
               <p className="text-xs text-gray-600 mt-1">{periodLabel}</p>
             </CardContent>
           </Card>
@@ -224,7 +248,12 @@ export default function DashboardPage() {
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">${periodExpenses.toFixed(2)}</div>
+              {Object.entries(periodExpensesByCurrency).map(([cur, amount]) => (
+                <div key={cur} className="text-2xl font-bold text-red-600">
+                  {getCurrencySymbol(cur)}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+              ))}
+              {Object.keys(periodExpensesByCurrency).length === 0 && <div className="text-2xl font-bold text-red-600">$0</div>}
               <p className="text-xs text-gray-600 mt-1">{periodLabel}</p>
             </CardContent>
           </Card>
@@ -404,7 +433,7 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-600">{wallet.currency}</p>
                       </div>
                       <p className="font-bold">
-                        {wallet.currency === 'USD' ? '$' : '₴'}{wallet.balance.toFixed(2)}
+                        {getCurrencySymbol(wallet.currency)}{wallet.balance.toFixed(0)}
                       </p>
                     </Link>
                   ))}
@@ -454,7 +483,7 @@ export default function DashboardPage() {
                         <div className="text-right">
                           <p className={`font-bold ${transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
                             {transaction.type === 'INCOME' ? '+' : '-'}
-                            {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                            {getCurrencySymbol(wallet?.currency || 'USD')}{transaction.amount.toFixed(0)}
                           </p>
                           <p className="text-xs text-gray-600">
                             {new Date(transaction.date).toLocaleDateString()}

@@ -127,9 +127,9 @@ export const transactionApi = {
 // Budgets
 export const budgetApi = {
   getAll: () => request<any[]>('/budgets'),
-  create: (data: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string }) =>
+  create: (data: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string }) =>
     request<any>('/budgets', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string }) =>
+  update: (id: string, data: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string }) =>
     request<any>(`/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/budgets/${id}`, { method: 'DELETE' }),
@@ -138,7 +138,7 @@ export const budgetApi = {
 // Savings
 export const savingApi = {
   getAll: () => request<any[]>('/savings'),
-  create: (data: { name: string; targetAmount: number; currentAmount?: number; deadline?: string }) =>
+  create: (data: { name: string; targetAmount: number; currentAmount?: number; currency?: string; deadline?: string }) =>
     request<any>('/savings', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
     request<any>(`/savings/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -156,6 +156,7 @@ export const creditApi = {
     interestRate?: number;
     monthlyPayment?: number;
     dueDate?: string;
+    currency?: string;
   }) =>
     request<any>('/credits', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
