@@ -263,21 +263,24 @@ export default function DashboardPage() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
+                    layout="vertical"
                     data={budgetData}
-                    margin={{ top: 20, right: 10, left: -20, bottom: 5 }}
-                    barSize={24}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    barSize={20}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
                     <XAxis 
+                      type="number"
+                      hide
+                      domain={[0, (dataMax: number) => Math.max(100, dataMax)]} 
+                    />
+                    <YAxis 
+                      type="category"
                       dataKey="name" 
                       axisLine={false} 
                       tickLine={false}
                       tick={{ fontSize: 11, fontWeight: 500 }}
-                      interval={0}
-                    />
-                    <YAxis 
-                      hide
-                      domain={[0, (dataMax: number) => Math.max(100, dataMax)]} 
+                      width={100}
                     />
                     <Tooltip 
                       cursor={{ fill: '#f8fafc' }}
@@ -298,8 +301,8 @@ export default function DashboardPage() {
                       }}
                     />
                     {/* A reference line at 100% to show the budget limit */}
-                    <ReferenceLine y={100} stroke="#475569" strokeWidth={2} strokeDasharray="3 3" />
-                    <Bar dataKey="percentageRaw" radius={[4, 4, 0, 0]}>
+                    <ReferenceLine x={100} stroke="#475569" strokeWidth={2} strokeDasharray="3 3" />
+                    <Bar dataKey="percentageRaw" radius={[0, 4, 4, 0]}>
                       {budgetData.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
