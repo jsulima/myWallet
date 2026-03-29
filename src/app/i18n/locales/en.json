@@ -25,7 +25,19 @@
     "budgetUsage": "Budget Usage",
     "expensesBreakdown": "Expenses Breakdown",
     "recentTransactions": "Recent Transactions",
-    "myWallets": "My Wallets"
+    "myWallets": "My Wallets",
+    "thisMonth": "This month",
+    "noActiveBudgets": "No active budget expenses to show",
+    "goToBudgeting": "Go to Budgeting",
+    "noExpensesPeriod": "No expenses in this budget period",
+    "noExpensesMonth": "No expenses recorded this month",
+    "addExpense": "Add Expense",
+    "noWallets": "No wallets yet",
+    "createWallet": "Create Wallet",
+    "addWallet": "Add Wallet",
+    "noTransactions": "No transactions yet",
+    "addTransaction": "Add Transaction",
+    "viewAll": "View All"
   },
   "transactions": {
     "title": "Transactions",

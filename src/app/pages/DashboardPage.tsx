@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
   const periodLabel = hasBudgetPeriod
     ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
-    : 'This month';
+    : t('dashboard.thisMonth');
 
   const periodTransactions = transactions.filter(t => {
     const d = new Date(t.date);
@@ -255,9 +255,9 @@ export default function DashboardPage() {
               {budgetData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center">
                   <BarChart3 className="h-8 w-8 text-gray-200 mb-2" />
-                  <p className="text-sm text-gray-400">No active budget expenses to show</p>
+                  <p className="text-sm text-gray-400">{t('dashboard.noActiveBudgets')}</p>
                   <Button asChild variant="link" size="sm" className="mt-1">
-                    <Link to="/budget">Go to Budgeting</Link>
+                    <Link to="/budget">{t('dashboard.goToBudgeting')}</Link>
                   </Button>
                 </div>
               ) : (
@@ -273,6 +273,7 @@ export default function DashboardPage() {
                       axisLine={false} 
                       tickLine={false}
                       tick={{ fontSize: 11, fontWeight: 500 }}
+                      interval={0}
                     />
                     <YAxis 
                       hide
@@ -324,9 +325,11 @@ export default function DashboardPage() {
               {expenseData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center">
                   <TrendingDown className="h-8 w-8 text-gray-200 mb-2" />
-                <p className="text-sm text-gray-400">{hasBudgetPeriod ? 'No expenses in this budget period' : 'No expenses recorded this month'}</p>
+                  <p className="text-sm text-gray-400">
+                    {hasBudgetPeriod ? t('dashboard.noExpensesPeriod') : t('dashboard.noExpensesMonth')}
+                  </p>
                   <Button asChild variant="link" size="sm" className="mt-1">
-                    <Link to="/transactions">Add Expense</Link>
+                    <Link to="/transactions">{t('dashboard.addExpense')}</Link>
                   </Button>
                 </div>
               ) : (
@@ -380,9 +383,9 @@ export default function DashboardPage() {
               {wallets.length === 0 ? (
                 <div className="text-center py-8">
                   <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-4">No wallets yet</p>
+                  <p className="text-gray-600 mb-4">{t('dashboard.noWallets')}</p>
                   <Button asChild size="sm">
-                    <Link to="/add-wallet">Create Wallet</Link>
+                    <Link to="/add-wallet">{t('dashboard.createWallet')}</Link>
                   </Button>
                 </div>
               ) : (
@@ -405,7 +408,7 @@ export default function DashboardPage() {
                   <Button asChild variant="outline" className="w-full" size="sm">
                     <Link to="/add-wallet">
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Wallet
+                      {t('dashboard.addWallet')}
                     </Link>
                   </Button>
                 </div>
@@ -422,9 +425,9 @@ export default function DashboardPage() {
               {recentTransactions.length === 0 ? (
                 <div className="text-center py-8">
                   <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-4">No transactions yet</p>
+                  <p className="text-gray-600 mb-4">{t('dashboard.noTransactions')}</p>
                   <Button asChild size="sm">
-                    <Link to="/transactions">Add Transaction</Link>
+                    <Link to="/transactions">{t('dashboard.addTransaction')}</Link>
                   </Button>
                 </div>
               ) : (
@@ -458,7 +461,7 @@ export default function DashboardPage() {
                     );
                   })}
                   <Button asChild variant="outline" className="w-full" size="sm">
-                    <Link to="/transactions">View All</Link>
+                    <Link to="/transactions">{t('dashboard.viewAll')}</Link>
                   </Button>
                 </div>
               )}

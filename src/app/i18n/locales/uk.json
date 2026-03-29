@@ -25,7 +25,19 @@
     "budgetUsage": "Використання бюджету",
     "expensesBreakdown": "Структура витрат",
     "recentTransactions": "Останні транзакції",
-    "myWallets": "Мої гаманці"
+    "myWallets": "Мої гаманці",
+    "thisMonth": "Цього місяця",
+    "noActiveBudgets": "Немає активних витрат бюджету для відображення",
+    "goToBudgeting": "Перейти до бюджетування",
+    "noExpensesPeriod": "Немає витрат у цьому періоді бюджету",
+    "noExpensesMonth": "Немає витрат за цей місяць",
+    "addExpense": "Додати витрату",
+    "noWallets": "Гаманців поки немає",
+    "createWallet": "Створити гаманець",
+    "addWallet": "Додати гаманець",
+    "noTransactions": "Транзакцій поки немає",
+    "addTransaction": "Додати транзакцію",
+    "viewAll": "Переглянути все"
   },
   "transactions": {
     "title": "Транзакції",
