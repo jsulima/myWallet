@@ -271,12 +271,12 @@ export default function BudgetPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>{t('budget.startDate')}</Label>
-                      <Input type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
+                      <Label htmlFor="startDate">{t('budget.startDate')}</Label>
+                      <Input id="startDate" type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
                     </div>
                     <div>
-                      <Label>{t('budget.endDate')}</Label>
-                      <Input type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
+                      <Label htmlFor="endDate">{t('budget.endDate')}</Label>
+                      <Input id="endDate" type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
                     </div>
                   </div>
 
@@ -284,7 +284,7 @@ export default function BudgetPage() {
                     <div>
                       <Label htmlFor="category">{t('budget.category')}</Label>
                       <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
-                        <SelectTrigger>
+                        <SelectTrigger id="category">
                           <SelectValue placeholder={t('budget.selectCategory') || ''} />
                         </SelectTrigger>
                         <SelectContent>
@@ -304,7 +304,7 @@ export default function BudgetPage() {
                     <div>
                       <Label htmlFor="status">{t('budget.status')}</Label>
                       <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
-                        <SelectTrigger>
+                        <SelectTrigger id="status">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

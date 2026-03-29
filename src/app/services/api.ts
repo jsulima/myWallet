@@ -127,9 +127,9 @@ export const transactionApi = {
 // Budgets
 export const budgetApi = {
   getAll: () => request<any[]>('/budgets'),
-  create: (data: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string }) =>
+  create: (data: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string }) =>
     request<any>('/budgets', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { limit?: number; startDate?: string; endDate?: string; status?: string }) =>
+  update: (id: string, data: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string }) =>
     request<any>(`/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/budgets/${id}`, { method: 'DELETE' }),
