@@ -218,16 +218,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateLanguage = async (language: string) => {
+    i18n.changeLanguage(language);
     if (user) {
       try {
+        // Optimistically update the user object
+        setUser({ ...user, language });
         const updatedUser = await authApi.updateProfile({ language });
         setUser(updatedUser);
-        i18n.changeLanguage(language);
       } catch (error) {
         console.error("Failed to update language profile", error);
+        // Optionally revert language if needed, but keeping the local change is fine
       }
-    } else {
-      i18n.changeLanguage(language);
     }
   };
 

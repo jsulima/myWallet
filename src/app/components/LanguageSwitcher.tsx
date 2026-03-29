@@ -7,13 +7,14 @@ export function LanguageSwitcher() {
   const { updateLanguage } = useApp();
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'uk' ? 'en' : 'uk';
+    const isUk = i18n.language?.startsWith('uk');
+    const newLang = isUk ? 'en' : 'uk';
     updateLanguage(newLang);
   };
 
   return (
     <Button variant="outline" size="sm" onClick={toggleLanguage} className="w-12">
-      {i18n.language === 'uk' ? 'UK' : 'EN'}
+      {i18n.language?.startsWith('uk') ? 'UK' : 'EN'}
     </Button>
   );
 }
