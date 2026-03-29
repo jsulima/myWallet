@@ -146,9 +146,12 @@ export default function TransactionsPage() {
     return passWallet && passCategory && passDate;
   });
 
-  const sortedTransactions = [...filteredTransactions].sort(
-    (a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime()
-  );
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
 
   const incomeTransactions = sortedTransactions.filter(t => t.type === 'INCOME');
   const expenseTransactions = sortedTransactions.filter(t => t.type === 'EXPENSE');
@@ -208,7 +211,7 @@ export default function TransactionsPage() {
                       </span>
                     ) : (
                       wallet?.name
-                    )} • {new Date(transaction.createdAt || transaction.date).toLocaleString([], {
+                    )} • {new Date(transaction.date).toLocaleString([], {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
