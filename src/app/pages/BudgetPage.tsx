@@ -12,8 +12,10 @@ import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import { currencyApi } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export default function BudgetPage() {
+  const { t } = useTranslation();
   const { budgetPlans, addBudgetPlan, updateBudgetPlan, deleteBudgetPlan, categories, transactions, wallets } = useApp();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -65,17 +67,17 @@ export default function BudgetPage() {
 
       if (editingBudget) {
         await updateBudgetPlan(editingBudget.id, budgetData);
-        toast.success('Budget updated successfully!');
+        toast.success(t('budget.successUpdate'));
       } else {
         await addBudgetPlan(budgetData);
-        toast.success('Budget created successfully!');
+        toast.success(t('budget.successCreate'));
       }
 
       setIsOpen(false);
       setEditingBudget(null);
       setFormData({ categoryId: '', limit: '', status: 'ACTIVE' });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save budget');
+      toast.error(error.message || t('budget.failSave'));
     } finally {
       setIsLoading(false);
     }
@@ -110,12 +112,12 @@ export default function BudgetPage() {
     });
     setEditingBudget(null);
     setIsOpen(true);
-    toast.info('Planning next period (approx. monthly cycle)...');
+    toast.info(t('budget.planningNext'));
   };
 
   const handleCloneToDraft = async () => {
     if (activeBudgets.length === 0) {
-      toast.error('No active budgets to clone.');
+      toast.error(t('budget.noActiveClone'));
       return;
     }
 
@@ -146,9 +148,9 @@ export default function BudgetPage() {
         )
       );
 
-      toast.success('Cloned active budgets to drafts for next 30 days!');
+      toast.success(t('budget.successClone'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to clone budgets');
+      toast.error(error.message || t('budget.failClone'));
     } finally {
       setIsLoading(false);
     }
@@ -156,13 +158,13 @@ export default function BudgetPage() {
 
   const handleFinishAll = async () => {
     if (activeBudgets.length === 0) return;
-    if (!confirm('Are you sure you want to finish all active budgets?')) return;
+    if (!confirm(t('budget.confirmFinish'))) return;
     setIsLoading(true);
     try {
       await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
-      toast.success('Finished all active budgets.');
+      toast.success(t('budget.successFinish'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to finish budgets');
+      toast.error(error.message || t('budget.failFinish'));
     } finally {
       setIsLoading(false);
     }
@@ -173,9 +175,9 @@ export default function BudgetPage() {
     setIsLoading(true);
     try {
       await Promise.all(draftBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'ACTIVE' })));
-      toast.success('Activated all draft budgets.');
+      toast.success(t('budget.successActivate'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to activate budgets');
+      toast.error(error.message || t('budget.failActivate'));
     } finally {
       setIsLoading(false);
     }
@@ -224,24 +226,24 @@ export default function BudgetPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">Agile Budgeting</h1>
-          <p className="text-gray-600">Plan flexible periods and manage budget drafts</p>
+          <h1 className="text-3xl font-bold">{t('budget.title')}</h1>
+          <p className="text-gray-600">{t('budget.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
             <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading || activeBudgets.length === 0}>
               <Copy className="h-4 w-4 mr-2" />
-              Clone to Draft
+              {t('budget.cloneDraft')}
             </Button>
             <Button variant="outline" className="text-red-600 border-red-100 hover:bg-red-50" onClick={handleFinishAll} disabled={isLoading || activeBudgets.length === 0}>
               <FastForward className="h-4 w-4 mr-2" />
-              Finish All
+              {t('budget.finishAll')}
             </Button>
             <Button variant="outline" className="text-green-600 border-green-100 hover:bg-green-50" onClick={handleActivateAll} disabled={isLoading || draftBudgets.length === 0}>
               <Zap className="h-4 w-4 mr-2" />
-              Activate Drafts
+              {t('budget.activateDrafts')}
             </Button>
             <Button variant="outline" onClick={handleAdopt}>
               <Calendar className="h-4 w-4 mr-2" />
-              Plan Next Period
+              {t('budget.planNext')}
             </Button>
             <Dialog open={isOpen} onOpenChange={(open) => {
               setIsOpen(open);
@@ -253,32 +255,32 @@ export default function BudgetPage() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Budget
+                  {t('budget.addBudget')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{editingBudget ? 'Edit Budget Plan' : 'Create Budget Plan'}</DialogTitle>
-                  <DialogDescription>Set boundaries for your spending categories.</DialogDescription>
+                  <DialogTitle>{editingBudget ? t('budget.editBudget') : t('budget.createBudget')}</DialogTitle>
+                  <DialogDescription>{t('budget.description')}</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Start Date</Label>
+                      <Label>{t('budget.startDate')}</Label>
                       <Input type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
                     </div>
                     <div>
-                      <Label>End Date</Label>
+                      <Label>{t('budget.endDate')}</Label>
                       <Input type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
                     </div>
                   </div>
 
                   {!editingBudget && (
                     <div>
-                      <Label htmlFor="category">Category</Label>
+                      <Label htmlFor="category">{t('budget.category')}</Label>
                       <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
+                          <SelectValue placeholder={t('budget.selectCategory') || ''} />
                         </SelectTrigger>
                         <SelectContent>
                           {categories.filter(c => c.type === 'EXPENSE').map(c => (
@@ -291,26 +293,26 @@ export default function BudgetPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="limit">Planned Amount (USD)</Label>
+                      <Label htmlFor="limit">{t('budget.plannedAmount')}</Label>
                       <Input id="limit" type="number" step="0.01" value={formData.limit} onChange={(e) => setFormData({ ...formData, limit: e.target.value })} required />
                     </div>
                     <div>
-                      <Label htmlFor="status">Status</Label>
+                      <Label htmlFor="status">{t('budget.status')}</Label>
                       <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="DRAFT">Draft (Planning)</SelectItem>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="FINISHED">Finished</SelectItem>
+                          <SelectItem value="DRAFT">{t('budget.statusDraft')}</SelectItem>
+                          <SelectItem value="ACTIVE">{t('budget.statusActive')}</SelectItem>
+                          <SelectItem value="FINISHED">{t('budget.statusFinished')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Saving...' : editingBudget ? 'Update Budget' : 'Create Budget'}
+                    {isLoading ? t('budget.saving') : editingBudget ? t('budget.updateBtn') : t('budget.createBtn')}
                   </Button>
                 </form>
               </DialogContent>
@@ -322,16 +324,16 @@ export default function BudgetPage() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="bg-gradient-to-br from-white to-gray-50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Active Budget</CardTitle>
+              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.totalActive')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">${totalPlanned.toFixed(0)}</div>
-              <p className="text-xs text-gray-400 mt-1">Across all active periods</p>
+              <p className="text-xs text-gray-400 mt-1">{t('budget.acrossPeriods')}</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-white to-gray-50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Spent So Far</CardTitle>
+              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.spentSoFar')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${totalSpent > totalPlanned ? 'text-red-600' : 'text-green-600'}`}>
@@ -347,20 +349,20 @@ export default function BudgetPage() {
           </Card>
           <Card className="bg-gradient-to-br from-white to-gray-50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Over Budget</CardTitle>
+              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.overBudget')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{overBudgetCount}</div>
-              <p className="text-xs text-gray-400 mt-1">Categories needing attention</p>
+              <p className="text-xs text-gray-400 mt-1">{t('budget.categoriesAttention')}</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-white to-blue-50 border-blue-100">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-blue-500 uppercase tracking-wider">Total Draft Budget</CardTitle>
+              <CardTitle className="text-xs font-semibold text-blue-500 uppercase tracking-wider">{t('budget.totalDraft')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">${draftBudgets.reduce((sum, bp) => sum + bp.limit, 0).toFixed(0)}</div>
-              <p className="text-xs text-gray-400 mt-1">{draftBudgets.length} draft {draftBudgets.length === 1 ? 'item' : 'items'} pending</p>
+              <p className="text-xs text-gray-400 mt-1">{draftBudgets.length === 1 ? t('budget.draftItemPending') : t('budget.draftItemsPending', { count: draftBudgets.length })}</p>
             </CardContent>
           </Card>
         </div>
@@ -369,7 +371,7 @@ export default function BudgetPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-500" />
-            Active Budgets
+            {t('budget.activeTitle')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeBudgets.length > 0 ? (
@@ -415,10 +417,10 @@ export default function BudgetPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-medium">${bp.spentAmount.toFixed(0)}</span>
                             <span className={`text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1 rounded ${bp.limit - bp.spentAmount >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                              {bp.limit - bp.spentAmount >= 0 ? 'Left: ' : 'Over: '}${Math.abs(bp.limit - bp.spentAmount).toFixed(0)}
+                              {bp.limit - bp.spentAmount >= 0 ? t('budget.left') : t('budget.over')}${Math.abs(bp.limit - bp.spentAmount).toFixed(0)}
                             </span>
                           </div>
-                          <span className="text-gray-400">of ${bp.limit.toFixed(0)}</span>
+                          <span className="text-gray-400">{t('budget.of')} ${bp.limit.toFixed(0)}</span>
                         </div>
                         <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
                       </div>
@@ -427,7 +429,7 @@ export default function BudgetPage() {
                 );
               })
             ) : (
-              <p className="text-sm text-gray-500 col-span-full py-4 text-center">No active budgets found.</p>
+              <p className="text-sm text-gray-500 col-span-full py-4 text-center">{t('budget.noActive')}</p>
             )}
           </div>
         </div>
@@ -437,7 +439,7 @@ export default function BudgetPage() {
           <div className="space-y-4 pt-4 border-t">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-500" />
-              Planned (Drafts)
+              {t('budget.plannedTitle')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {draftBudgets.map(bp => {
@@ -453,7 +455,7 @@ export default function BudgetPage() {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">Draft</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">{t('budget.draftBadge')}</span>
                           </div>
                           <h4 className="font-bold text-sm">{category?.name}</h4>
                           <p className="text-[10px] text-gray-400">
@@ -481,8 +483,8 @@ export default function BudgetPage() {
                       </div>
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs mb-1 items-center">
-                          <span className="font-medium text-gray-500">Planned</span>
-                          <span className="text-gray-400">of ${bp.limit.toFixed(0)}</span>
+                          <span className="font-medium text-gray-500">{t('budget.planned')}</span>
+                          <span className="text-gray-400">{t('budget.of')} ${bp.limit.toFixed(0)}</span>
                         </div>
                         {/* Static empty progress bar to match active card shape */}
                         <div className="h-1.5 rounded-full bg-gray-100" />

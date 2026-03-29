@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 const COLORS = [
   '#ef4444', '#f59e0b', '#10b981', '#3b82f6', 
@@ -20,6 +21,7 @@ const ICONS: Record<string, any> = {
 };
 
 export default function CategoriesPage() {
+  const { t } = useTranslation();
   const { categories, addCategory, updateCategory, transactions } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export default function CategoriesPage() {
           icon: formData.icon,
           type: formData.type,
         });
-        toast.success('Category updated successfully!');
+        toast.success(t('categories.successUpdate'));
       } else {
         await addCategory({
           name: formData.name,
@@ -71,12 +73,12 @@ export default function CategoriesPage() {
           icon: formData.icon,
           type: formData.type,
         });
-        toast.success('Category created successfully!');
+        toast.success(t('categories.successCreate'));
       }
       setIsOpen(false);
       setFormData(defaultFormData);
     } catch (error: any) {
-      toast.error(error.message || `Failed to ${editingCategoryId ? 'update' : 'create'} category`);
+      toast.error(error.message || (editingCategoryId ? t('categories.failSave') : t('categories.failCreate')));
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +92,12 @@ export default function CategoriesPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">Categories</h1>
-          <p className="text-gray-600">Organize your transactions with categories</p>
+          <h1 className="text-3xl font-bold">{t('categories.title')}</h1>
+          <p className="text-gray-600">{t('categories.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
             <Button onClick={handleOpenAdd}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Category
+              {t('categories.addCategory')}
             </Button>
           </div>
         </div>
@@ -109,19 +111,19 @@ export default function CategoriesPage() {
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingCategoryId ? 'Edit Category' : 'Create Category'}</DialogTitle>
+              <DialogTitle>{editingCategoryId ? t('categories.editCategory') : t('categories.createCategory')}</DialogTitle>
               <DialogDescription>
-                {editingCategoryId ? 'Modify the details for this category' : 'Enter the details for the new category'}
+                {editingCategoryId ? t('categories.editDescription') : t('categories.createDescription')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Form content ... */}
                 <div>
-                  <Label htmlFor="name">Category Name</Label>
+                  <Label htmlFor="name">{t('categories.categoryName')}</Label>
                   <Input
                     id="name"
                     type="text"
-                    placeholder="e.g., Groceries"
+                    placeholder={t('categories.namePlaceholder') || ''}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
@@ -129,7 +131,7 @@ export default function CategoriesPage() {
                 </div>
 
                 <div>
-                  <Label>Type</Label>
+                  <Label>{t('categories.type')}</Label>
                   <Select
                     value={formData.type}
                     onValueChange={(value: 'INCOME' | 'EXPENSE') => setFormData({ ...formData, type: value })}
@@ -138,14 +140,14 @@ export default function CategoriesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="EXPENSE">Expense</SelectItem>
-                      <SelectItem value="INCOME">Income</SelectItem>
+                      <SelectItem value="EXPENSE">{t('categories.expense')}</SelectItem>
+                      <SelectItem value="INCOME">{t('categories.income')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label>Color</Label>
+                  <Label>{t('categories.color')}</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {COLORS.map((color) => (
                       <button
@@ -162,7 +164,7 @@ export default function CategoriesPage() {
                 </div>
 
                 <div>
-                  <Label>Icon</Label>
+                  <Label>{t('categories.icon')}</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {Object.keys(ICONS).map((iconName) => {
                       const IconComponent = ICONS[iconName];
@@ -183,7 +185,7 @@ export default function CategoriesPage() {
                 </div>
 
                 <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-                  {isLoading ? 'Saving...' : editingCategoryId ? 'Save Changes' : 'Create Category'}
+                  {isLoading ? t('categories.saving') : editingCategoryId ? t('categories.saveChanges') : t('categories.createCategory')}
                 </Button>
               </form>
             </DialogContent>
@@ -210,7 +212,7 @@ export default function CategoriesPage() {
                       <div>
                         <h3 className="font-bold text-gray-800">{category.name}</h3>
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-1">
-                          {category.type} • {getCategoryTransactionCount(category.id)} transactions
+                          {category.type === 'EXPENSE' ? t('categories.expense') : t('categories.income')} • {t('categories.transactionsCount', { count: getCategoryTransactionCount(category.id) })}
                         </p>
                       </div>
                     </div>
@@ -230,8 +232,8 @@ export default function CategoriesPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <Tag className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 mb-4">No categories yet</p>
-              <Button onClick={handleOpenAdd}>Create First Category</Button>
+              <p className="text-gray-600 mb-4">{t('categories.noCategories')}</p>
+              <Button onClick={handleOpenAdd}>{t('categories.createFirst')}</Button>
             </CardContent>
           </Card>
         )}

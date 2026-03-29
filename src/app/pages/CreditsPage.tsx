@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export default function CreditsPage() {
+  const { t } = useTranslation();
   const { credits, addCredit, payCredit, wallets, categories } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [payingCreditId, setPayingCreditId] = useState<string | null>(null);
@@ -46,11 +48,11 @@ export default function CreditsPage() {
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : '',
       });
 
-      toast.success('Credit added successfully!');
+      toast.success(t('credits.successAdd'));
       setIsOpen(false);
       setFormData({ name: '', totalAmount: '', remainingAmount: '', interestRate: '', monthlyPayment: '', dueDate: '' });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add credit');
+      toast.error(error.message || t('credits.failAdd'));
     } finally {
       setIsLoading(false);
     }
@@ -68,11 +70,11 @@ export default function CreditsPage() {
         amount: parseFloat(payFormData.amount),
         date: new Date(payFormData.date).toISOString(),
       });
-      toast.success('Payment recorded successfully!');
+      toast.success(t('credits.successPay'));
       setPayingCreditId(null);
       setPayFormData({ walletId: '', categoryId: '', amount: '', date: new Date().toISOString().split('T')[0] });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to record payment');
+      toast.error(error.message || t('credits.failPay'));
     } finally {
       setIsLoading(false);
     }
@@ -102,60 +104,60 @@ export default function CreditsPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">Credits & Loans</h1>
-          <p className="text-gray-600">Manage your debts and track payments</p>
+          <h1 className="text-3xl font-bold">{t('credits.title')}</h1>
+          <p className="text-gray-600">{t('credits.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Credit
+                  {t('credits.addCredit')}
                 </Button>
               </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Credit/Loan</DialogTitle>
-                <DialogDescription>Add a new credit or loan to your account.</DialogDescription>
+                <DialogTitle>{t('credits.addCreditTitle')}</DialogTitle>
+                <DialogDescription>{t('credits.addCreditDesc')}</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Credit Name</Label>
-                  <Input id="name" type="text" placeholder="e.g., Car Loan"
+                  <Label htmlFor="name">{t('credits.creditName')}</Label>
+                  <Input id="name" type="text" placeholder={t('credits.namePlaceholder') || ''}
                     value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
                 </div>
 
                 <div>
-                  <Label htmlFor="totalAmount">Total Amount</Label>
+                  <Label htmlFor="totalAmount">{t('credits.totalAmount')}</Label>
                   <Input id="totalAmount" type="number" step="0.01" placeholder="0.00"
                     value={formData.totalAmount} onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })} required />
                 </div>
 
                 <div>
-                  <Label htmlFor="remainingAmount">Remaining Amount</Label>
+                  <Label htmlFor="remainingAmount">{t('credits.remainingAmount')}</Label>
                   <Input id="remainingAmount" type="number" step="0.01" placeholder="0.00"
                     value={formData.remainingAmount} onChange={(e) => setFormData({ ...formData, remainingAmount: e.target.value })} required />
                 </div>
 
                 <div>
-                  <Label htmlFor="interestRate">Interest Rate (%)</Label>
+                  <Label htmlFor="interestRate">{t('credits.interestRate')}</Label>
                   <Input id="interestRate" type="number" step="0.01" placeholder="0.00"
                     value={formData.interestRate} onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })} required />
                 </div>
 
                 <div>
-                  <Label htmlFor="monthlyPayment">Monthly Payment</Label>
+                  <Label htmlFor="monthlyPayment">{t('credits.monthlyPayment')}</Label>
                   <Input id="monthlyPayment" type="number" step="0.01" placeholder="0.00"
                     value={formData.monthlyPayment} onChange={(e) => setFormData({ ...formData, monthlyPayment: e.target.value })} required />
                 </div>
 
                 <div>
-                  <Label htmlFor="dueDate">Next Payment Due</Label>
+                  <Label htmlFor="dueDate">{t('credits.dueDate')}</Label>
                   <Input id="dueDate" type="date"
                     value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} required />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Adding...' : 'Add Credit'}
+                  {isLoading ? t('credits.adding') : t('credits.addCredit')}
                 </Button>
               </form>
             </DialogContent>
@@ -167,23 +169,23 @@ export default function CreditsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Total Debt</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('credits.totalDebt')}</CardTitle>
                 <AlertCircle className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">${getTotalDebt().toFixed(2)}</div>
-                <p className="text-xs text-gray-600 mt-1">{credits.length} active credit(s)</p>
+                <p className="text-xs text-gray-600 mt-1">{t('credits.activeCredits', { count: credits.length })}</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Monthly Payment</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('credits.monthlyPayment')}</CardTitle>
                 <CreditCard className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">${getTotalMonthlyPayment().toFixed(2)}</div>
-                <p className="text-xs text-gray-600 mt-1">Total per month</p>
+                <p className="text-xs text-gray-600 mt-1">{t('credits.totalPerMonth')}</p>
               </CardContent>
             </Card>
           </div>
@@ -205,13 +207,13 @@ export default function CreditsPage() {
                       <div>
                         <CardTitle>{credit.name}</CardTitle>
                         <p className="text-sm text-gray-600 mt-1">
-                          {credit.interestRate}% interest rate
+                          {t('credits.interestRateLabel', { rate: credit.interestRate })}
                         </p>
                       </div>
                     </div>
                     {isOverdue && (
                       <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded">
-                        Overdue!
+                        {t('credits.overdue')}
                       </span>
                     )}
                   </div>
@@ -220,7 +222,7 @@ export default function CreditsPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">Paid Off</span>
+                        <span className="text-sm text-gray-600">{t('credits.paidOff')}</span>
                         <span className="text-sm font-semibold">{paidPercentage.toFixed(0)}%</span>
                       </div>
                       <Progress value={paidPercentage} className="h-2" />
@@ -228,13 +230,13 @@ export default function CreditsPage() {
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Remaining</p>
+                        <p className="text-sm text-gray-600">{t('credits.remaining')}</p>
                         <p className="text-lg font-bold text-red-600">
                           ${(credit.remainingAmount ?? 0).toFixed(2)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">Total</p>
+                        <p className="text-sm text-gray-600">{t('credits.total')}</p>
                         <p className="text-lg font-bold">${credit.totalAmount.toFixed(2)}</p>
                       </div>
                     </div>
@@ -242,12 +244,12 @@ export default function CreditsPage() {
                     <div className="pt-3 border-t border-gray-200">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <p className="text-sm text-gray-600">Monthly Payment</p>
+                          <p className="text-sm text-gray-600">{t('credits.monthlyPayment')}</p>
                           <p className="font-semibold">${(credit.monthlyPayment ?? 0).toFixed(2)}</p>
                         </div>
                         {credit.dueDate && (
                           <div className="text-right">
-                            <p className="text-sm text-gray-600">Next Due</p>
+                            <p className="text-sm text-gray-600">{t('credits.nextDue')}</p>
                             <p className={`font-semibold ${isOverdue ? 'text-red-600' : ''}`}>
                               {new Date(credit.dueDate).toLocaleDateString()}
                             </p>
@@ -256,11 +258,11 @@ export default function CreditsPage() {
                       </div>
 
                       <div className="flex items-center justify-between bg-blue-50/50 p-2 rounded text-sm mb-4">
-                        <span className="text-gray-600">Est. payoff time:</span>
+                        <span className="text-gray-600">{t('credits.estPayoff')}</span>
                         <span className="font-medium text-blue-700">
                           {credit.monthlyPayment > 0 && credit.remainingAmount > 0 
-                            ? `${Math.ceil(credit.remainingAmount / credit.monthlyPayment)} months`
-                            : credit.remainingAmount <= 0 ? 'Paid off' : 'N/A'
+                            ? t('credits.months', { count: Math.ceil(credit.remainingAmount / credit.monthlyPayment) })
+                            : credit.remainingAmount <= 0 ? t('credits.paid') : t('credits.na')
                           }
                         </span>
                       </div>
@@ -271,7 +273,7 @@ export default function CreditsPage() {
                         onClick={() => openPayDialog(credit)}
                         disabled={credit.remainingAmount <= 0}
                       >
-                        Make Payment
+                        {t('credits.makePayment')}
                       </Button>
                     </div>
                   </div>
@@ -285,19 +287,19 @@ export default function CreditsPage() {
         <Dialog open={!!payingCreditId} onOpenChange={(open) => !open && setPayingCreditId(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Make Credit Payment</DialogTitle>
-              <DialogDescription>Record a payment for this credit. This will deduct from your selected wallet.</DialogDescription>
+              <DialogTitle>{t('credits.paymentTitle')}</DialogTitle>
+              <DialogDescription>{t('credits.paymentDesc')}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handlePaySubmit} className="space-y-4">
               <div>
-                <Label htmlFor="walletId">From Wallet</Label>
+                <Label htmlFor="walletId">{t('credits.fromWallet')}</Label>
                 <Select 
                   value={payFormData.walletId} 
                   onValueChange={(val) => setPayFormData({ ...payFormData, walletId: val })}
                   required
                 >
                   <SelectTrigger id="walletId">
-                    <SelectValue placeholder="Select a wallet" />
+                    <SelectValue placeholder={t('credits.selectWallet') || ''} />
                   </SelectTrigger>
                   <SelectContent>
                     {wallets.map(w => (
@@ -310,14 +312,14 @@ export default function CreditsPage() {
               </div>
 
               <div>
-                <Label htmlFor="categoryId">Expense Category</Label>
+                <Label htmlFor="categoryId">{t('credits.expenseCategory')}</Label>
                 <Select 
                   value={payFormData.categoryId} 
                   onValueChange={(val) => setPayFormData({ ...payFormData, categoryId: val })}
                   required
                 >
                   <SelectTrigger id="categoryId">
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder={t('credits.selectCategory') || ''} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.filter(c => c.type === 'EXPENSE').map(c => (
@@ -330,20 +332,20 @@ export default function CreditsPage() {
               </div>
 
               <div>
-                <Label htmlFor="payAmount">Payment Amount</Label>
+                <Label htmlFor="payAmount">{t('credits.paymentAmount')}</Label>
                 <Input id="payAmount" type="number" step="0.01" placeholder="0.00"
                   value={payFormData.amount} onChange={(e) => setPayFormData({ ...payFormData, amount: e.target.value })} required />
               </div>
 
               <div>
-                <Label htmlFor="payDate">Date</Label>
+                <Label htmlFor="payDate">{t('credits.date')}</Label>
                 <Input id="payDate" type="date"
                   value={payFormData.date} onChange={(e) => setPayFormData({ ...payFormData, date: e.target.value })} required />
               </div>
 
               <div className="pt-2">
                 <Button type="submit" className="w-full" disabled={isLoading || !payFormData.walletId || !payFormData.categoryId}>
-                  {isLoading ? 'Processing...' : 'Submit Payment'}
+                  {isLoading ? t('credits.processing') : t('credits.submitPayment')}
                 </Button>
               </div>
             </form>
@@ -354,8 +356,8 @@ export default function CreditsPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 mb-4">No credits or loans yet</p>
-              <Button onClick={() => setIsOpen(true)}>Add First Credit</Button>
+              <p className="text-gray-600 mb-4">{t('credits.noCredits')}</p>
+              <Button onClick={() => setIsOpen(true)}>{t('credits.addFirst')}</Button>
             </CardContent>
           </Card>
         )}

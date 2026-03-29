@@ -9,8 +9,10 @@ import { Progress } from '../components/ui/progress';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export default function SavingsPage() {
+  const { t } = useTranslation();
   const { savingPlaces, addSavingPlace, updateSavingPlace } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +38,11 @@ export default function SavingsPage() {
         deadline: formData.deadline ? new Date(formData.deadline).toISOString() : undefined,
       });
 
-      toast.success('Savings goal created successfully!');
+      toast.success(t('savings.successAdd'));
       setIsOpen(false);
       setFormData({ name: '', targetAmount: '', currentAmount: '', deadline: '' });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create savings goal');
+      toast.error(error.message || t('savings.failAdd'));
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +56,7 @@ export default function SavingsPage() {
 
     const amount = parseFloat(addMoneyAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
+      toast.error(t('savings.invalidAmount'));
       return;
     }
 
@@ -63,12 +65,12 @@ export default function SavingsPage() {
         currentAmount: saving.currentAmount + amount,
       });
 
-      toast.success('Money added to savings!');
+      toast.success(t('savings.successMoney'));
       setIsAddMoneyOpen(false);
       setSelectedSaving(null);
       setAddMoneyAmount('');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add money');
+      toast.error(error.message || t('savings.failMoney'));
     }
   };
 
@@ -76,28 +78,28 @@ export default function SavingsPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">Savings Goals</h1>
-          <p className="text-gray-600">Track your savings and reach your goals</p>
+          <h1 className="text-3xl font-bold">{t('savings.title')}</h1>
+          <p className="text-gray-600">{t('savings.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Savings Goal
+                  {t('savings.addGoal')}
                 </Button>
               </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Savings Goal</DialogTitle>
-                <DialogDescription>Enter your savings goal details</DialogDescription>
+                <DialogTitle>{t('savings.createGoal')}</DialogTitle>
+                <DialogDescription>{t('savings.createGoalDesc')}</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Goal Name</Label>
+                  <Label htmlFor="name">{t('savings.goalName')}</Label>
                   <Input
                     id="name"
                     type="text"
-                    placeholder="e.g., Emergency Fund, Vacation"
+                    placeholder={t('savings.namePlaceholder') || ''}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
@@ -105,7 +107,7 @@ export default function SavingsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="targetAmount">Target Amount</Label>
+                  <Label htmlFor="targetAmount">{t('savings.targetAmount')}</Label>
                   <Input
                     id="targetAmount"
                     type="number"
@@ -118,7 +120,7 @@ export default function SavingsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="currentAmount">Current Amount</Label>
+                  <Label htmlFor="currentAmount">{t('savings.currentAmount')}</Label>
                   <Input
                     id="currentAmount"
                     type="number"
@@ -130,7 +132,7 @@ export default function SavingsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="deadline">Deadline (Optional)</Label>
+                  <Label htmlFor="deadline">{t('savings.deadline')}</Label>
                   <Input
                     id="deadline"
                     type="date"
@@ -140,7 +142,7 @@ export default function SavingsPage() {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Creating...' : 'Create Goal'}
+                  {isLoading ? t('savings.creating') : t('savings.createGoal')}
                 </Button>
               </form>
             </DialogContent>
@@ -165,14 +167,14 @@ export default function SavingsPage() {
                         <CardTitle>{saving.name}</CardTitle>
                         {saving.deadline && (
                           <p className="text-sm text-gray-600 mt-1">
-                            Due: {new Date(saving.deadline).toLocaleDateString()}
+                            {t('savings.due', { date: new Date(saving.deadline).toLocaleDateString() })}
                           </p>
                         )}
                       </div>
                     </div>
                     {isCompleted && (
                       <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
-                        Completed!
+                        {t('savings.completed')}
                       </span>
                     )}
                   </div>
@@ -181,7 +183,7 @@ export default function SavingsPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">Progress</span>
+                        <span className="text-sm text-gray-600">{t('savings.progress')}</span>
                         <span className="text-sm font-semibold">{progress.toFixed(0)}%</span>
                       </div>
                       <Progress value={progress} className="h-2" />
@@ -189,13 +191,13 @@ export default function SavingsPage() {
                     
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Current</p>
+                        <p className="text-sm text-gray-600">{t('savings.current')}</p>
                         <p className="text-lg font-bold">
                           ${saving.currentAmount.toFixed(2)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">Target</p>
+                        <p className="text-sm text-gray-600">{t('savings.target')}</p>
                         <p className="text-lg font-bold">
                           ${saving.targetAmount.toFixed(2)}
                         </p>
@@ -212,7 +214,7 @@ export default function SavingsPage() {
                         }}
                       >
                         <TrendingUp className="h-4 w-4 mr-2" />
-                        Add Money
+                        {t('savings.addMoney')}
                       </Button>
                     )}
                   </div>
@@ -226,8 +228,8 @@ export default function SavingsPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <PiggyBank className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 mb-4">No savings goals yet</p>
-              <Button onClick={() => setIsOpen(true)}>Create First Goal</Button>
+              <p className="text-gray-600 mb-4">{t('savings.noGoals')}</p>
+              <Button onClick={() => setIsOpen(true)}>{t('savings.createFirst')}</Button>
             </CardContent>
           </Card>
         )}
@@ -235,11 +237,11 @@ export default function SavingsPage() {
         <Dialog open={isAddMoneyOpen} onOpenChange={setIsAddMoneyOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Money to Savings</DialogTitle>
+              <DialogTitle>{t('savings.addMoneyTitle')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="amount">Amount</Label>
+                <Label htmlFor="amount">{t('savings.amount')}</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -250,7 +252,7 @@ export default function SavingsPage() {
                 />
               </div>
               <Button onClick={handleAddMoney} className="w-full">
-                Add Money
+                {t('savings.addMoney')}
               </Button>
             </div>
           </DialogContent>
