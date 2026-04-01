@@ -33,7 +33,7 @@ import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, categories, budgetPlans } = useApp();
+  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods } = useApp();
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   const { t } = useTranslation();
 
@@ -70,21 +70,32 @@ export default function DashboardPage() {
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
 
-  // Determine active budget period (use earliest start to latest end among active budgets)
-  const activeBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
-  const hasBudgetPeriod = activeBudgets.length > 0;
+  // Determine active budget period
+  const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
+  // Use budgets associated with the active period, or all active budgets if no period is defined
+  const activeBudgets = budgetPlans.filter(bp => 
+    bp.status === 'ACTIVE' && (!activePeriod || bp.periodId === activePeriod.id)
+  );
+  
+  const hasBudgetPeriod = !!activePeriod || activeBudgets.length > 0;
+  
+  const periodStart = activePeriod
+    ? new Date(activePeriod.startDate)
+    : hasBudgetPeriod
+      ? new Date(Math.min(...activeBudgets.map(bp => new Date(bp.startDate).getTime())))
+      : (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; })();
 
-  const periodStart = hasBudgetPeriod
-    ? new Date(Math.min(...activeBudgets.map(bp => new Date(bp.startDate).getTime())))
-    : (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; })();
+  const periodEnd = activePeriod
+    ? new Date(activePeriod.endDate)
+    : hasBudgetPeriod
+      ? new Date(Math.max(...activeBudgets.map(bp => new Date(bp.endDate).getTime())))
+      : (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })();
 
-  const periodEnd = hasBudgetPeriod
-    ? new Date(Math.max(...activeBudgets.map(bp => new Date(bp.endDate).getTime())))
-    : (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })();
-
-  const periodLabel = hasBudgetPeriod
-    ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
-    : t('dashboard.thisMonth');
+  const periodLabel = activePeriod
+    ? activePeriod.name
+    : hasBudgetPeriod
+      ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
+      : t('dashboard.thisMonth');
 
   const periodTransactions = transactions.filter(t => {
     const d = new Date(t.date);
@@ -112,8 +123,7 @@ export default function DashboardPage() {
   // For charts, we still need normalized USD values to compare fairly
 
   // Prepare Budget Chart Data
-  const budgetData = budgetPlans
-    .filter(bp => bp.status === 'ACTIVE')
+  const budgetData = activeBudgets
     .map(bp => {
       const category = getCategoryById(bp.categoryId);
       const start = new Date(bp.startDate);
