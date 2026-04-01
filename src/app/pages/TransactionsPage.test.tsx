@@ -84,4 +84,54 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('Lunch')).toBeInTheDocument();
     expect(screen.getByText('Dinner')).toBeInTheDocument();
   });
+
+  it('sorts transactions by date DESC and createdAt DESC', () => {
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const transactions = [
+      { 
+        id: 't-old-day', 
+        date: yesterday.toISOString(), 
+        createdAt: now.toISOString(),
+        description: 'Old Day',
+        walletId: 'wallet-1', categoryId: 'cat-1', type: 'EXPENSE', amount: 10
+      },
+      { 
+        id: 't-new-day-first', 
+        date: now.toISOString(), 
+        createdAt: new Date(now.getTime() - 1000).toISOString(),
+        description: 'New Day First Added',
+        walletId: 'wallet-1', categoryId: 'cat-1', type: 'EXPENSE', amount: 10
+      },
+      { 
+        id: 't-new-day-second', 
+        date: now.toISOString(), 
+        createdAt: now.toISOString(),
+        description: 'New Day Second Added',
+        walletId: 'wallet-1', categoryId: 'cat-1', type: 'EXPENSE', amount: 10
+      },
+    ];
+
+    (useApp as any).mockReturnValue({
+      wallets: mockWallets,
+      categories: mockCategories,
+      transactions: transactions,
+      addTransaction: vi.fn(),
+      deleteTransaction: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/transactions']}>
+        <TransactionsPage />
+      </MemoryRouter>
+    );
+
+    const items = screen.getAllByText(/Day/);
+    // Order should be: New Day Second Added (same date, later createdAt), New Day First Added, Old Day
+    expect(items[0]).toHaveTextContent('New Day Second Added');
+    expect(items[1]).toHaveTextContent('New Day First Added');
+    expect(items[2]).toHaveTextContent('Old Day');
+  });
 });
