@@ -138,7 +138,11 @@
     "namePeriod": "Name this budget group",
     "finishPeriod": "Finish Period & Archive",
     "archiveGroup": "Group to Archive",
-    "noPeriods": "No budget periods defined yet."
+    "noPeriods": "No budget periods defined yet.",
+    "editPeriod": "Edit Budget Period",
+    "editPeriodDesc": "Update the name and dates of this budget period.",
+    "successUpdatePeriod": "Budget period updated successfully!",
+    "failUpdatePeriod": "Failed to update budget period"
   },
   "archive": {
     "title": "Budgets Archive",

@@ -25,7 +25,9 @@ export default function BudgetPage() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
+  const [isEditPeriodOpen, setIsEditPeriodOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
+  const [editingPeriod, setEditingPeriod] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   
@@ -235,6 +237,36 @@ export default function BudgetPage() {
         toast.error(error.message || t('budget.failSave'));
     } finally {
         setIsLoading(false);
+    }
+  };
+
+  const handleEditPeriod = (period: any) => {
+    setEditingPeriod(period);
+    setPeriodFormData({
+      name: period.name,
+      startDate: new Date(period.startDate).toISOString().split('T')[0],
+      endDate: new Date(period.endDate).toISOString().split('T')[0],
+    });
+    setIsEditPeriodOpen(true);
+  };
+
+  const handleUpdatePeriod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPeriod) return;
+    setIsLoading(true);
+    try {
+      await updateBudgetPeriod(editingPeriod.id, {
+        name: periodFormData.name,
+        startDate: new Date(periodFormData.startDate).toISOString(),
+        endDate: new Date(periodFormData.endDate).toISOString(),
+      });
+      toast.success(t('budget.successUpdatePeriod'));
+      setIsEditPeriodOpen(false);
+      setEditingPeriod(null);
+    } catch (error: any) {
+      toast.error(error.message || t('budget.failUpdatePeriod'));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -543,7 +575,13 @@ export default function BudgetPage() {
         </div>
 
         {/* Budget Periods Sections */}
-        {budgetPeriods.filter(p => p.status !== 'FINISHED').map(period => {
+        {budgetPeriods
+          .filter(p => p.status !== 'FINISHED')
+          .sort((a, b) => {
+            const order: Record<string, number> = { ACTIVE: 0, DRAFT: 1 };
+            return (order[a.status] ?? 2) - (order[b.status] ?? 2);
+          })
+          .map(period => {
             const periodBudgets = budgetPlans.filter(bp => bp.periodId === period.id);
             if (periodBudgets.length === 0 && period.status !== 'DRAFT') return null;
 
@@ -562,6 +600,15 @@ export default function BudgetPage() {
                             </Badge>
                         </h2>
                         <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-gray-500 hover:text-gray-700"
+                                onClick={() => handleEditPeriod(period)}
+                            >
+                                <Edit2 className="h-3 w-3 mr-1" />
+                                {t('common.edit')}
+                            </Button>
                             {period.status === 'DRAFT' && (
                                 <Button 
                                     size="sm" 
@@ -734,6 +781,54 @@ export default function BudgetPage() {
             </div>
         )}
       </div>
+
+      {/* Edit Budget Period Dialog */}
+      <Dialog open={isEditPeriodOpen} onOpenChange={(open) => {
+        setIsEditPeriodOpen(open);
+        if (!open) setEditingPeriod(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('budget.editPeriod')}</DialogTitle>
+            <DialogDescription>{t('budget.editPeriodDesc')}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdatePeriod} className="space-y-4">
+            <div>
+              <Label htmlFor="editPeriodName">{t('budget.periodName')}</Label>
+              <Input
+                id="editPeriodName"
+                placeholder={t('budget.periodNamePlaceholder') || ''}
+                value={periodFormData.name}
+                onChange={(e) => setPeriodFormData({ ...periodFormData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="editPStartDate">{t('budget.startDate')}</Label>
+                <Input
+                  id="editPStartDate"
+                  type="date"
+                  value={periodFormData.startDate}
+                  onChange={(e) => setPeriodFormData({ ...periodFormData, startDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="editPEndDate">{t('budget.endDate')}</Label>
+                <Input
+                  id="editPEndDate"
+                  type="date"
+                  value={periodFormData.endDate}
+                  onChange={(e) => setPeriodFormData({ ...periodFormData, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading || !periodFormData.name}>
+              {isLoading ? t('budget.saving') : t('budget.updateBtn')}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
