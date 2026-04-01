@@ -44,7 +44,7 @@ export default function BudgetPage() {
     status: 'ACTIVE' as 'DRAFT' | 'ACTIVE' | 'FINISHED',
     note: '',
     currency: 'USD',
-    periodId: '',
+    periodId: 'none',
   });
 
   const [periodFormData, setPeriodFormData] = useState({
@@ -91,7 +91,7 @@ export default function BudgetPage() {
         status: formData.status,
         note: formData.note,
         currency: formData.currency,
-        periodId: formData.periodId || undefined,
+        periodId: formData.periodId === 'none' ? undefined : formData.periodId,
       };
 
       if (editingBudget) {
@@ -104,7 +104,7 @@ export default function BudgetPage() {
 
       setIsOpen(false);
       setEditingBudget(null);
-      setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: '' });
+      setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: 'none' });
     } catch (error: any) {
       toast.error(error.message || t('budget.failSave'));
     } finally {
@@ -120,7 +120,7 @@ export default function BudgetPage() {
       status: budget.status,
       note: budget.note || '',
       currency: budget.currency || 'USD',
-      periodId: budget.periodId || '',
+      periodId: budget.periodId || 'none',
     });
     setDateRange({
       startDate: new Date(budget.startDate).toISOString().split('T')[0],
@@ -353,7 +353,7 @@ export default function BudgetPage() {
               setIsOpen(open);
               if (!open) {
                 setEditingBudget(null);
-                setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: '' });
+                setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: 'none' });
               }
             }}>
               <DialogTrigger asChild>
@@ -435,7 +435,7 @@ export default function BudgetPage() {
                           <SelectValue placeholder="No period" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {budgetPeriods.filter(p => p.status !== 'FINISHED' || formData.periodId === p.id).map(p => (
                             <SelectItem key={p.id} value={p.id}>{p.name} ({p.status})</SelectItem>
                           ))}
