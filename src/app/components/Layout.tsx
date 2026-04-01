@@ -7,6 +7,7 @@ import {
   PiggyBank, 
   CreditCard, 
   Calendar,
+  Archive,
   LogOut
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -35,6 +36,7 @@ export default function Layout({ children }: LayoutProps) {
     { to: '/savings', icon: PiggyBank, label: t('nav.savings') },
     { to: '/credits', icon: CreditCard, label: t('nav.credits') },
     { to: '/budget', icon: Calendar, label: t('nav.budget') },
+    { to: '/archive', icon: Archive, label: t('nav.archive') },
   ];
 
   return (

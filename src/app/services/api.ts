@@ -127,12 +127,25 @@ export const transactionApi = {
 // Budgets
 export const budgetApi = {
   getAll: () => request<any[]>('/budgets'),
-  create: (data: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string }) =>
+  create: (data: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string; periodId?: string }) =>
     request<any>('/budgets', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string }) =>
+  update: (id: string, data: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string; periodId?: string }) =>
     request<any>(`/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/budgets/${id}`, { method: 'DELETE' }),
+};
+
+// Budget Periods
+export const budgetPeriodApi = {
+  getAll: () => request<any[]>('/budget-periods'),
+  create: (data: { name: string; startDate: string; endDate: string; status?: string }) =>
+    request<any>('/budget-periods', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { name?: string; startDate?: string; endDate?: string; status?: string }) =>
+    request<any>(`/budget-periods/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<any>(`/budget-periods/${id}`, { method: 'DELETE' }),
+  getAnalytics: (id: string) =>
+    request<any>(`/budget-periods/${id}/analytics`),
 };
 
 // Savings

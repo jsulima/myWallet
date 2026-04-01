@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
   authApi, walletApi, categoryApi, transactionApi,
-  budgetApi, savingApi, creditApi,
+  budgetApi, budgetPeriodApi, savingApi, creditApi,
   setToken, clearToken,
 } from '../services/api';
 import i18n from '../i18n/config';
@@ -76,6 +76,16 @@ export interface BudgetPlan {
   note?: string;
   currency: string;
   category?: Category;
+  periodId?: string;
+}
+
+export interface BudgetPeriod {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'DRAFT' | 'ACTIVE' | 'FINISHED';
+  budgets?: BudgetPlan[];
 }
 
 interface AppContextType {
@@ -130,9 +140,14 @@ interface AppContextType {
   addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; currency?: string; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
   payCredit: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => Promise<void>;
   budgetPlans: BudgetPlan[];
-  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string }) => Promise<void>;
-  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string }) => Promise<void>;
+  addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string; periodId?: string }) => Promise<void>;
+  updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string; periodId?: string }) => Promise<void>;
   deleteBudgetPlan: (id: string) => Promise<void>;
+  budgetPeriods: BudgetPeriod[];
+  addBudgetPeriod: (period: { name: string; startDate: string; endDate: string; status?: string }) => Promise<void>;
+  updateBudgetPeriod: (id: string, period: { name?: string; startDate?: string; endDate?: string; status?: string }) => Promise<void>;
+  deleteBudgetPeriod: (id: string) => Promise<void>;
+  fetchPeriodAnalytics: (id: string) => Promise<any>;
   refreshData: () => Promise<void>;
 }
 
@@ -147,16 +162,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [savingPlaces, setSavingPlaces] = useState<SavingPlace[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [budgetPlans, setBudgetPlans] = useState<BudgetPlan[]>([]);
+  const [budgetPeriods, setBudgetPeriods] = useState<BudgetPeriod[]>([]);
 
   const fetchAllData = useCallback(async () => {
     try {
-      const [w, c, t, s, cr, b] = await Promise.all([
+      const [w, c, t, s, cr, b, bp] = await Promise.all([
         walletApi.getAll(),
         categoryApi.getAll(),
         transactionApi.getAll(),
         savingApi.getAll(),
         creditApi.getAll(),
         budgetApi.getAll(),
+        budgetPeriodApi.getAll(),
       ]);
       setWallets(w);
       setCategories(c);
@@ -164,8 +181,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSavingPlaces(s);
       setCredits(cr);
       setBudgetPlans(b);
-    } catch {
-      // User may not be authenticated
+      setBudgetPeriods(bp);
+    } catch (error) {
+      console.error('Fetch All Data Error:', error);
     }
   }, []);
 
@@ -219,6 +237,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavingPlaces([]);
     setCredits([]);
     setBudgetPlans([]);
+    setBudgetPeriods([]);
   };
 
   const updateLanguage = async (language: string) => {
@@ -344,12 +363,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchAllData();
   };
 
-  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string }) => {
+  const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string; periodId?: string }) => {
     const created = await budgetApi.create(budgetPlan);
     setBudgetPlans(prev => [...prev, created]);
   };
 
-  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string }) => {
+  const updateBudgetPlan = async (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string; periodId?: string }) => {
     const updated = await budgetApi.update(id, budgetPlan);
     setBudgetPlans(prev => prev.map(bp => bp.id === id ? updated : bp));
   };
@@ -357,6 +376,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteBudgetPlan = async (id: string) => {
     await budgetApi.delete(id);
     setBudgetPlans(prev => prev.filter(bp => bp.id !== id));
+  };
+
+  const addBudgetPeriod = async (period: { name: string; startDate: string; endDate: string; status?: string }) => {
+    const created = await budgetPeriodApi.create(period);
+    setBudgetPeriods(prev => [...prev, created]);
+  };
+
+  const updateBudgetPeriod = async (id: string, period: { name?: string; startDate?: string; endDate?: string; status?: string }) => {
+    const updated = await budgetPeriodApi.update(id, period);
+    setBudgetPeriods(prev => prev.map(p => p.id === id ? updated : p));
+    // When a period status is updated, we should refresh budget plans too as they might have changed status
+    if (period.status) {
+      const b = await budgetApi.getAll();
+      setBudgetPlans(b);
+    }
+  };
+
+  const deleteBudgetPeriod = async (id: string) => {
+    await budgetPeriodApi.delete(id);
+    setBudgetPeriods(prev => prev.filter(p => p.id !== id));
+  };
+
+  const fetchPeriodAnalytics = async (id: string) => {
+    return await budgetPeriodApi.getAnalytics(id);
   };
 
   return (
@@ -389,6 +432,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addBudgetPlan,
         updateBudgetPlan,
         deleteBudgetPlan,
+        budgetPeriods,
+        addBudgetPeriod,
+        updateBudgetPeriod,
+        deleteBudgetPeriod,
+        fetchPeriodAnalytics,
         refreshData: fetchAllData,
       }}
     >

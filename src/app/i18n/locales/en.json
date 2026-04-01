@@ -6,6 +6,7 @@
     "savings": "Savings",
     "credits": "Credits",
     "budget": "Budget",
+    "archive": "Archive",
     "logout": "Logout"
   },
   "dashboard": {
@@ -130,7 +131,29 @@
     "successFinish": "Finished all active budgets.",
     "failFinish": "Failed to finish budgets",
     "successActivate": "Activated all draft budgets.",
-    "failActivate": "Failed to activate budgets"
+    "failActivate": "Failed to activate budgets",
+    "periodName": "Period Name",
+    "periodNamePlaceholder": "e.g., March 2024",
+    "createPeriod": "Create Budget Period",
+    "namePeriod": "Name this budget group",
+    "finishPeriod": "Finish Period & Archive",
+    "archiveGroup": "Group to Archive",
+    "noPeriods": "No budget periods defined yet."
+  },
+  "archive": {
+    "title": "Budgets Archive",
+    "subtitle": "Analyze your past financial performance",
+    "noFinished": "No finished budget periods found.",
+    "selectPeriod": "Select a period to analyze",
+    "periodDetails": "Period Details",
+    "comparison": "Planned vs Spent Comparison",
+    "totalPlanned": "Total Planned",
+    "totalSpent": "Total Spent",
+    "performance": "Category Performance",
+    "customRange": "Custom Date Range",
+    "apply": "Apply Range",
+    "analytics": "Analytics",
+    "efficiency": "Budget Efficiency"
   },
   "categories": {
     "title": "Categories",
