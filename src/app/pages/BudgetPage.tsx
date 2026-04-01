@@ -20,7 +20,7 @@ export default function BudgetPage() {
   const { 
     budgetPlans, addBudgetPlan, updateBudgetPlan, deleteBudgetPlan, 
     categories, transactions, wallets,
-    budgetPeriods, addBudgetPeriod, updateBudgetPeriod 
+    budgetPeriods, addBudgetPeriod, updateBudgetPeriod, cloneBudgetPeriod 
   } = useApp();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -130,21 +130,30 @@ export default function BudgetPage() {
   };
 
   const handleCloneToDraft = async () => {
-    const activePeriodBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
-    if (activePeriodBudgets.length === 0) {
+    const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
+    
+    if (activePeriod) {
+        setIsLoading(true);
+        try {
+            await cloneBudgetPeriod(activePeriod.id);
+            toast.success(t('budget.successClone'));
+        } catch (error: any) {
+            toast.error(error.message || t('budget.failClone'));
+        } finally {
+            setIsLoading(false);
+        }
+        return;
+    }
+
+    const standaloneActiveBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE' && !bp.periodId);
+    if (standaloneActiveBudgets.length === 0) {
       toast.error(t('budget.noActiveClone'));
       return;
     }
 
     setIsLoading(true);
     try {
-      const maxEndDate = activePeriodBudgets.reduce((max, bp) => {
-        const d = new Date(bp.endDate);
-        return d > max ? d : max;
-      }, new Date(0));
-
-      const nextStart = new Date(maxEndDate);
-      nextStart.setDate(nextStart.getDate() + 1);
+      const nextStart = new Date();
       nextStart.setHours(0, 0, 0, 0);
 
       const nextEnd = new Date(nextStart);
@@ -152,7 +161,7 @@ export default function BudgetPage() {
       nextEnd.setHours(23, 59, 59, 999);
 
       await Promise.all(
-        activePeriodBudgets.map(bp => 
+        standaloneActiveBudgets.map(bp => 
           addBudgetPlan({
             categoryId: bp.categoryId,
             limit: bp.limit,
@@ -160,7 +169,8 @@ export default function BudgetPage() {
             endDate: nextEnd.toISOString(),
             status: 'DRAFT',
             note: bp.note,
-            periodId: undefined
+            currency: bp.currency,
+            periodId: 'none'
           })
         )
       );
@@ -296,7 +306,7 @@ export default function BudgetPage() {
           <h1 className="text-3xl font-bold">{t('budget.title')}</h1>
           <p className="text-gray-600">{t('budget.subtitle')}</p>
           <div className="flex flex-wrap items-center gap-2 mt-2 justify-end">
-            <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading || activeBudgets.length === 0}>
+            <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading}>
               <Copy className="h-4 w-4 mr-2" />
               {t('budget.cloneDraft')}
             </Button>
@@ -564,15 +574,26 @@ export default function BudgetPage() {
                                 </Button>
                             )}
                             {period.status === 'ACTIVE' && (
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="text-red-600 border-red-100"
-                                    onClick={() => handleFinishAll()}
-                                >
-                                    <FastForward className="h-3 w-3 mr-1" />
-                                    {t('budget.finishPeriod')}
-                                </Button>
+                                <>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="text-blue-600 border-blue-100"
+                                        onClick={() => cloneBudgetPeriod(period.id)}
+                                    >
+                                        <Copy className="h-3 w-3 mr-1" />
+                                        {t('budget.cloneDraft')}
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="text-red-600 border-red-100"
+                                        onClick={() => handleFinishAll()}
+                                    >
+                                        <FastForward className="h-3 w-3 mr-1" />
+                                        {t('budget.finishPeriod')}
+                                    </Button>
+                                </>
                             )}
                         </div>
                     </div>
@@ -629,20 +650,20 @@ export default function BudgetPage() {
                                 </Card>
                             );
                         })}
-                        {periodBudgets.length === 0 && period.status === 'DRAFT' && (
-                             <Card className="flex flex-col items-center justify-center p-6 border-dashed border-2 opacity-50">
-                                <p className="text-xs text-gray-400">{t('budget.noActive')}</p>
-                                <Button variant="ghost" size="sm" className="mt-2 text-[10px]" onClick={() => {
-                                    setFormData({ ...formData, status: 'DRAFT', periodId: period.id });
+                        {period.status !== 'FINISHED' && (
+                             <Card 
+                                className="flex flex-col items-center justify-center p-6 border-dashed border-2 opacity-50 hover:opacity-100 hover:border-blue-400 transition-all cursor-pointer bg-gray-50/50"
+                                onClick={() => {
+                                    setFormData({ ...formData, status: period.status as any, periodId: period.id });
                                     setDateRange({
                                         startDate: new Date(period.startDate).toISOString().split('T')[0],
                                         endDate: new Date(period.endDate).toISOString().split('T')[0]
                                     });
                                     setIsOpen(true);
-                                }}>
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    {t('budget.addBudget')}
-                                </Button>
+                                }}
+                             >
+                                <Plus className="h-6 w-6 text-gray-400 mb-2" />
+                                <p className="text-xs text-gray-500 font-medium">{t('budget.addBudget')}</p>
                              </Card>
                         )}
                     </div>

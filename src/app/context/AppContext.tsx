@@ -147,6 +147,7 @@ interface AppContextType {
   addBudgetPeriod: (period: { name: string; startDate: string; endDate: string; status?: string }) => Promise<void>;
   updateBudgetPeriod: (id: string, period: { name?: string; startDate?: string; endDate?: string; status?: string }) => Promise<void>;
   deleteBudgetPeriod: (id: string) => Promise<void>;
+  cloneBudgetPeriod: (id: string) => Promise<void>;
   fetchPeriodAnalytics: (id: string) => Promise<any>;
   refreshData: () => Promise<void>;
 }
@@ -398,6 +399,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBudgetPeriods(prev => prev.filter(p => p.id !== id));
   };
 
+  const cloneBudgetPeriod = async (id: string) => {
+    await budgetPeriodApi.clone(id);
+    await fetchAllData();
+  };
+
   const fetchPeriodAnalytics = async (id: string) => {
     return await budgetPeriodApi.getAnalytics(id);
   };
@@ -436,6 +442,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addBudgetPeriod,
         updateBudgetPeriod,
         deleteBudgetPeriod,
+        cloneBudgetPeriod,
         fetchPeriodAnalytics,
         refreshData: fetchAllData,
       }}

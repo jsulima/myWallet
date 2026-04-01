@@ -27,7 +27,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 export default function TransactionsPage() {
-  const { transactions, wallets, categories, addTransaction, deleteTransaction } = useApp();
+  const { transactions, wallets, categories, addTransaction, deleteTransaction, budgetPeriods } = useApp();
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
@@ -38,6 +38,7 @@ export default function TransactionsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(searchParams.get('categoryId') || 'all');
   const [startDate, setStartDate] = useState<string>(searchParams.get('startDate') || '');
   const [endDate, setEndDate] = useState<string>(searchParams.get('endDate') || '');
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(searchParams.get('periodId') || 'all');
 
   useEffect(() => {
     const walletId = searchParams.get('walletId');
@@ -59,6 +60,9 @@ export default function TransactionsPage() {
     
     const eDate = searchParams.get('endDate');
     setEndDate(eDate || '');
+
+    const pId = searchParams.get('periodId');
+    setSelectedPeriodId(pId || 'all');
   }, [searchParams]);
   const [formData, setFormData] = useState({
     walletId: '',
@@ -525,6 +529,8 @@ export default function TransactionsPage() {
                   } else {
                     searchParams.delete('startDate');
                   }
+                  setSelectedPeriodId('all');
+                  searchParams.delete('periodId');
                   setSearchParams(searchParams);
                 }}
                 className="w-[140px]"
@@ -540,11 +546,47 @@ export default function TransactionsPage() {
                   } else {
                     searchParams.delete('endDate');
                   }
+                  setSelectedPeriodId('all');
+                  searchParams.delete('periodId');
                   setSearchParams(searchParams);
                 }}
                 className="w-[140px]"
               />
             </div>
+            
+            <Select 
+              value={selectedPeriodId} 
+              onValueChange={(value) => {
+                setSelectedPeriodId(value);
+                if (value === 'all') {
+                  searchParams.delete('periodId');
+                } else {
+                  searchParams.set('periodId', value);
+                  const period = budgetPeriods.find(p => p.id === value);
+                  if (period) {
+                    const s = new Date(period.startDate).toISOString().split('T')[0];
+                    const e = new Date(period.endDate).toISOString().split('T')[0];
+                    setStartDate(s);
+                    setEndDate(e);
+                    searchParams.set('startDate', s);
+                    searchParams.set('endDate', e);
+                  }
+                }
+                setSearchParams(searchParams);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={t('budget.archiveGroup') || 'Period'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('transactions.all')}</SelectItem>
+                {budgetPeriods.map((period) => (
+                  <SelectItem key={period.id} value={period.id}>
+                    {period.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             
         </div>
 

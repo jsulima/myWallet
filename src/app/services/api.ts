@@ -146,6 +146,8 @@ export const budgetPeriodApi = {
     request<any>(`/budget-periods/${id}`, { method: 'DELETE' }),
   getAnalytics: (id: string) =>
     request<any>(`/budget-periods/${id}/analytics`),
+  clone: (id: string) =>
+    request<any>(`/budget-periods/${id}/clone`, { method: 'POST' }),
 };
 
 // Savings
