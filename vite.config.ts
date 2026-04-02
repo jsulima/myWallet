@@ -20,7 +20,7 @@ export default defineConfig({
   server: {
     allowedHosts: [
       'mywallet.home',
-      'mywallet.pp.ua'
+      'app.mywallet.pp.ua'
     ]
   },
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
