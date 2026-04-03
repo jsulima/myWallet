@@ -9,6 +9,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import SavingsPage from './pages/SavingsPage';
 import CreditsPage from './pages/CreditsPage';
 import BudgetPage from './pages/BudgetPage';
+import SubscriptionsPage from '@/app/pages/SubscriptionsPage';
 import ArchivePage from './pages/ArchivePage';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -52,6 +53,10 @@ export const router = createBrowserRouter([
   {
     path: '/budget',
     element: <ProtectedRoute><BudgetPage /></ProtectedRoute>,
+  },
+  {
+    path: '/subscriptions',
+    element: <ProtectedRoute><SubscriptionsPage /></ProtectedRoute>,
   },
   {
     path: '/archive',

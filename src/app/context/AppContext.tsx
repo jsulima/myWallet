@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import {
   authApi, walletApi, categoryApi, transactionApi,
   budgetApi, budgetPeriodApi, savingApi, creditApi,
+  subscriptionApi,
   setToken, clearToken,
 } from '../services/api';
 import i18n from '../i18n/config';
@@ -88,6 +89,20 @@ export interface BudgetPeriod {
   budgets?: BudgetPlan[];
 }
 
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  status: 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+  startDate: string;
+  nextPaymentDate: string;
+  categoryId?: string;
+  note?: string;
+  category?: Category;
+}
+
 interface AppContextType {
   user: User | null;
   loading: boolean;
@@ -149,6 +164,19 @@ interface AppContextType {
   deleteBudgetPeriod: (id: string) => Promise<void>;
   cloneBudgetPeriod: (id: string) => Promise<void>;
   fetchPeriodAnalytics: (id: string) => Promise<any>;
+  subscriptions: Subscription[];
+  addSubscription: (subscription: {
+    name: string;
+    amount: number;
+    currency?: string;
+    frequency?: string;
+    status?: string;
+    startDate?: string;
+    categoryId?: string;
+    note?: string;
+  }) => Promise<void>;
+  updateSubscription: (id: string, subscription: Partial<Subscription>) => Promise<void>;
+  deleteSubscription: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -164,10 +192,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [credits, setCredits] = useState<Credit[]>([]);
   const [budgetPlans, setBudgetPlans] = useState<BudgetPlan[]>([]);
   const [budgetPeriods, setBudgetPeriods] = useState<BudgetPeriod[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
 
   const fetchAllData = useCallback(async () => {
     try {
-      const [w, c, t, s, cr, b, bp] = await Promise.all([
+      const [w, c, t, s, cr, b, bp, sub] = await Promise.all([
         walletApi.getAll(),
         categoryApi.getAll(),
         transactionApi.getAll(),
@@ -175,6 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         creditApi.getAll(),
         budgetApi.getAll(),
         budgetPeriodApi.getAll(),
+        subscriptionApi.getAll(),
       ]);
       setWallets(w);
       setCategories(c);
@@ -183,6 +213,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCredits(cr);
       setBudgetPlans(b);
       setBudgetPeriods(bp);
+      setSubscriptions(sub);
     } catch (error) {
       console.error('Fetch All Data Error:', error);
     }
@@ -239,6 +270,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCredits([]);
     setBudgetPlans([]);
     setBudgetPeriods([]);
+    setSubscriptions([]);
   };
 
   const updateLanguage = async (language: string) => {
@@ -408,6 +440,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return await budgetPeriodApi.getAnalytics(id);
   };
 
+  const addSubscription = async (subscription: {
+    name: string;
+    amount: number;
+    currency?: string;
+    frequency?: string;
+    status?: string;
+    startDate?: string;
+    categoryId?: string;
+    note?: string;
+  }) => {
+    const created = await subscriptionApi.create(subscription);
+    setSubscriptions(prev => [...prev, created]);
+    // Optionally refresh data if subscription creation affects other things
+  };
+
+  const updateSubscription = async (id: string, subscription: Partial<Subscription>) => {
+    const updated = await subscriptionApi.update(id, subscription);
+    setSubscriptions(prev => prev.map(s => s.id === id ? updated : s));
+  };
+
+  const deleteSubscription = async (id: string) => {
+    await subscriptionApi.delete(id);
+    setSubscriptions(prev => prev.filter(s => s.id !== id));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -444,6 +501,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteBudgetPeriod,
         cloneBudgetPeriod,
         fetchPeriodAnalytics,
+        subscriptions,
+        addSubscription,
+        updateSubscription,
+        deleteSubscription,
         refreshData: fetchAllData,
       }}
     >

@@ -6,6 +6,7 @@
     "savings": "Заощадження",
     "credits": "Кредити",
     "budget": "Бюджет",
+    "subscriptions": "Підписки",
     "archive": "Архів",
     "logout": "Вийти"
   },
@@ -257,5 +258,34 @@
     "successMoney": "Гроші успішно додані до заощаджень!",
     "failMoney": "Не вдалося додати гроші",
     "invalidAmount": "Будь ласка, введіть коректну суму"
+  },
+  "subscriptions": {
+    "title": "Сервіси підписок",
+    "subtitle": "Відстежуйте свої регулярні платежі та майбутні рахунки",
+    "addSubscription": "Додати підписку",
+    "editSubscription": "Редагувати підписку",
+    "createSubscription": "Створити підписку",
+    "name": "Назва сервісу",
+    "namePlaceholder": "напр., Netflix, Spotify, Оренда",
+    "amount": "Сума",
+    "frequency": "Періодичність",
+    "startDate": "Дата початку",
+    "nextPayment": "Наступний платіж",
+    "status": "Статус",
+    "active": "Активна",
+    "paused": "Призупинена",
+    "cancelled": "Скасована",
+    "daily": "Щодня",
+    "weekly": "Щотижня",
+    "monthly": "Щомісяця",
+    "yearly": "Щорічно",
+    "noSubscriptions": "Підписки ще не відстежуються",
+    "addFirst": "Додайте свою першу підписку",
+    "successCreate": "Підписку успішно додано!",
+    "successUpdate": "Підписку успішно оновлено!",
+    "failSave": "Не вдалося зберегти підписку",
+    "confirmDelete": "Ви впевнені, що хочете видалити цю підписку?",
+    "upcoming": "Найближчі платежі",
+    "plannedFor": "Заплановано на {{date}}"
   }
 }

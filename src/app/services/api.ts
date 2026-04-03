@@ -202,3 +202,23 @@ export const transferApi = {
 export const currencyApi = {
   getRates: () => request<{ from: string; to: string; rate: number }[]>('/currency/rates'),
 };
+
+// Subscriptions
+export const subscriptionApi = {
+  getAll: () => request<any[]>('/subscriptions'),
+  create: (data: {
+    name: string;
+    amount: number;
+    currency?: string;
+    frequency?: string;
+    status?: string;
+    startDate?: string;
+    categoryId?: string;
+    note?: string;
+  }) =>
+    request<any>('/subscriptions', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    request<any>(`/subscriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<any>(`/subscriptions/${id}`, { method: 'DELETE' }),
+};
