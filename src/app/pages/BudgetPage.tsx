@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 
 export default function BudgetPage() {
   const { t } = useTranslation();
@@ -649,52 +650,66 @@ export default function BudgetPage() {
                             const category = getCategoryById(bp.categoryId);
                             const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
                             const percent = (spentAmount / bp.limit) * 100;
+                            const delta = bp.limit - spentAmount;
+                            const isOver = delta < 0;
+                            const currencySymbol = bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency;
                             
                             return (
-                                <Card 
-                                    key={bp.id} 
-                                    className={`relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow ${period.status === 'DRAFT' ? 'opacity-70 border-dashed' : ''}`}
-                                    onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
-                                >
-                                    <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
-                                    <CardContent className="pt-4 pb-3 px-4">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <h4 className="font-bold text-sm">{category?.name}</h4>
-                                                <p className="text-[10px] text-gray-400">
-                                                    {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-7 w-7" 
-                                                    onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                                                >
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-7 w-7 text-red-500" 
-                                                    onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <div className="flex justify-between text-xs mb-1 items-center">
-                                                <span className="font-medium">
-                                                    {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{spentAmount.toFixed(0)}
-                                                </span>
-                                                <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
-                                            </div>
-                                            <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <Tooltip key={bp.id}>
+                                    <TooltipTrigger asChild>
+                                        <Card 
+                                            className={`relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow ${period.status === 'DRAFT' ? 'opacity-70 border-dashed' : ''}`}
+                                            onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
+                                        >
+                                            <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
+                                            <CardContent className="pt-4 pb-3 px-4">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="font-bold text-sm">{category?.name}</h4>
+                                                        <p className="text-[10px] text-gray-400">
+                                                            {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7" 
+                                                            onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                                                        >
+                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7 text-red-500" 
+                                                            onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex justify-between text-xs mb-1 items-center">
+                                                        <span className="font-medium">
+                                                            {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{spentAmount.toFixed(0)}
+                                                        </span>
+                                                        <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
+                                                    </div>
+                                                    <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="font-medium">
+                                            {isOver ? t('budget.over') : t('budget.left')}: 
+                                            <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
+                                                {currencySymbol}{Math.abs(delta).toFixed(0)}
+                                            </span>
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
                             );
                         })}
                         {period.status !== 'FINISHED' && (
@@ -730,51 +745,65 @@ export default function BudgetPage() {
                         const category = getCategoryById(bp.categoryId);
                         const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
                         const percent = (spentAmount / bp.limit) * 100;
+                        const delta = bp.limit - spentAmount;
+                        const isOver = delta < 0;
+                        const currencySymbol = bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency;
                         return (
-                            <Card 
-                                key={bp.id} 
-                                className="relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
-                                onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
-                            >
-                                <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
-                                <CardContent className="pt-4 pb-3 px-4">
-                                  <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                      <h4 className="font-bold text-sm">{category?.name}</h4>
-                                      <p className="text-[10px] text-gray-400">
-                                        {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
-                                      </p>
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-7 w-7" 
-                                        onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                                      >
-                                        <Edit2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-7 w-7 text-red-500" 
-                                        onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between text-xs mb-1 items-center">
-                                      <span className="font-medium">
-                                          {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{spentAmount.toFixed(0)}
-                                      </span>
-                                      <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
-                                    </div>
-                                    <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
-                                  </div>
-                                </CardContent>
-                            </Card>
+                            <Tooltip key={bp.id}>
+                                <TooltipTrigger asChild>
+                                    <Card 
+                                        className="relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+                                        onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
+                                    >
+                                        <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
+                                        <CardContent className="pt-4 pb-3 px-4">
+                                          <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                              <h4 className="font-bold text-sm">{category?.name}</h4>
+                                              <p className="text-[10px] text-gray-400">
+                                                {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
+                                              </p>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7" 
+                                                onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                                              >
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                              </Button>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 text-red-500" 
+                                                onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                          <div className="space-y-1">
+                                            <div className="flex justify-between text-xs mb-1 items-center">
+                                              <span className="font-medium">
+                                                  {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{spentAmount.toFixed(0)}
+                                              </span>
+                                              <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
+                                            </div>
+                                            <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
+                                          </div>
+                                        </CardContent>
+                                    </Card>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p className="font-medium">
+                                        {isOver ? t('budget.over') : t('budget.left')}: 
+                                        <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
+                                            {currencySymbol}{Math.abs(delta).toFixed(0)}
+                                        </span>
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
                         );
                     })}
                 </div>
