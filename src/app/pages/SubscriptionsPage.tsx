@@ -16,7 +16,7 @@ import { format, parseISO } from 'date-fns';
 
 export default function SubscriptionsPage() {
   const { t } = useTranslation();
-  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, categories } = useApp();
+  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, categories, wallets } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [editingSub, setEditingSub] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +28,7 @@ export default function SubscriptionsPage() {
     frequency: 'MONTHLY',
     startDate: new Date().toISOString().split('T')[0],
     categoryId: '',
+    walletId: '',
     note: '',
   });
 
@@ -39,6 +40,7 @@ export default function SubscriptionsPage() {
       frequency: 'MONTHLY',
       startDate: new Date().toISOString().split('T')[0],
       categoryId: '',
+      walletId: wallets.length > 0 ? wallets[0].id : '',
       note: '',
     });
     setEditingSub(null);
@@ -53,6 +55,7 @@ export default function SubscriptionsPage() {
       frequency: sub.frequency,
       startDate: sub.startDate.split('T')[0],
       categoryId: sub.categoryId || '',
+      walletId: sub.walletId,
       note: sub.note || '',
     });
     setIsOpen(true);
@@ -60,6 +63,10 @@ export default function SubscriptionsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.walletId) {
+      toast.error(t('wallet.selectWallet', "Please select a wallet"));
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -70,6 +77,7 @@ export default function SubscriptionsPage() {
         frequency: formData.frequency as Subscription['frequency'],
         startDate: new Date(formData.startDate).toISOString(),
         categoryId: formData.categoryId || undefined,
+        walletId: formData.walletId,
         note: formData.note || undefined,
       };
 
@@ -95,6 +103,18 @@ export default function SubscriptionsPage() {
       await deleteSubscription(id);
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete');
+    }
+  };
+
+  const handlePay = async (id: string) => {
+    try {
+      setIsLoading(true);
+      await paySubscription(id);
+      toast.success(t('subscriptions.paymentSuccess', "Payment recorded successfully"));
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to record payment');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -217,27 +237,48 @@ export default function SubscriptionsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="categoryId">{t('transactions.category', "Category")}</Label>
-                    <Select 
-                      value={formData.categoryId} 
-                      onValueChange={(val) => setFormData({ ...formData, categoryId: val })}
-                    >
-                      <SelectTrigger id="categoryId">
-                        <SelectValue placeholder={t('transactions.selectCategory', "Select category")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.filter(c => c.type === 'EXPENSE').map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.color }} />
-                              {c.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="categoryId">{t('transactions.category', "Category")}</Label>
+                      <Select 
+                        value={formData.categoryId} 
+                        onValueChange={(val) => setFormData({ ...formData, categoryId: val })}
+                      >
+                        <SelectTrigger id="categoryId">
+                          <SelectValue placeholder={t('transactions.selectCategory', "Select category")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.filter(c => c.type === 'EXPENSE').map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.color }} />
+                                {c.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                   </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="walletId">{t('transactions.wallet', "Wallet")}</Label>
+                      <Select 
+                        value={formData.walletId} 
+                        onValueChange={(val) => setFormData({ ...formData, walletId: val })}
+                        required
+                      >
+                        <SelectTrigger id="walletId">
+                          <SelectValue placeholder={t('transactions.selectWallet', "Select wallet")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {wallets.map(w => (
+                            <SelectItem key={w.id} value={w.id}>
+                              {w.name} ({w.balance} {w.currency})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="note">{t('budget.note', "Note")}</Label>
@@ -308,6 +349,11 @@ export default function SubscriptionsPage() {
                             </span>
                         </div>
 
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-indigo-200" />
+                            {t('transactions.wallet', "Wallet")}: <span className="text-gray-600">{sub.wallet?.name || 'N/A'}</span>
+                        </div>
+
                         <div className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all duration-500 ${isDueSoon && sub.status === 'ACTIVE' ? 'bg-orange-50/50 border-orange-200' : 'bg-slate-50/50 border-slate-100'}`}>
                             <div className="flex items-center gap-2.5 text-sm">
                                 <div className={`p-2 rounded-lg ${isDueSoon && sub.status === 'ACTIVE' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
@@ -332,6 +378,16 @@ export default function SubscriptionsPage() {
                                     <><Play className="h-4 w-4 mr-2 stroke-[3px]" /> {t('subscriptions.active', "Resume")}</>
                                 )}
                              </Button>
+                             {sub.status === 'ACTIVE' && (
+                                <Button 
+                                    className="flex-1 font-black rounded-xl h-11 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100"
+                                    onClick={() => handlePay(sub.id)}
+                                    disabled={isLoading}
+                                >
+                                    <RefreshCcw className={`h-4 w-4 mr-2 stroke-[3px] ${isLoading ? 'animate-spin' : ''}`} />
+                                    {t('subscriptions.payNow', "Pay Now")}
+                                </Button>
+                             )}
                         </div>
                     </div>
                   </CardContent>
@@ -386,7 +442,10 @@ export default function SubscriptionsPage() {
                                         </div>
                                         <div className="text-right">
                                             <p className="text-lg font-black text-gray-900">{sub.currency} {sub.amount.toLocaleString()}</p>
-                                            <Badge variant="outline" className="text-[10px] uppercase font-black tracking-widest py-0 border-gray-200">{t(`subscriptions.${sub.frequency.toLowerCase()}`)}</Badge>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <Badge variant="outline" className="text-[10px] uppercase font-black tracking-widest py-0 border-gray-200">{t(`subscriptions.${sub.frequency.toLowerCase()}`)}</Badge>
+                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{sub.wallet?.name}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 ))

@@ -99,8 +99,10 @@ export interface Subscription {
   startDate: string;
   nextPaymentDate: string;
   categoryId?: string;
+  walletId: string;
   note?: string;
   category?: Category;
+  wallet?: Wallet;
 }
 
 interface AppContextType {
@@ -173,10 +175,12 @@ interface AppContextType {
     status?: string;
     startDate?: string;
     categoryId?: string;
+    walletId: string;
     note?: string;
   }) => Promise<void>;
   updateSubscription: (id: string, subscription: Partial<Subscription>) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
+  paySubscription: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -448,11 +452,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     status?: string;
     startDate?: string;
     categoryId?: string;
+    walletId: string;
     note?: string;
   }) => {
     const created = await subscriptionApi.create(subscription);
     setSubscriptions(prev => [...prev, created]);
-    // Optionally refresh data if subscription creation affects other things
+    // Refresh wallets to get updated balance if paid immediately
+    const updatedWallets = await walletApi.getAll();
+    setWallets(updatedWallets);
   };
 
   const updateSubscription = async (id: string, subscription: Partial<Subscription>) => {
@@ -463,6 +470,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteSubscription = async (id: string) => {
     await subscriptionApi.delete(id);
     setSubscriptions(prev => prev.filter(s => s.id !== id));
+  };
+
+  const paySubscription = async (id: string) => {
+    const updated = await subscriptionApi.pay(id);
+    setSubscriptions(prev => prev.map(s => s.id === id ? updated : s));
+    // Refresh walnuts and transactions
+    await fetchAllData();
   };
 
   return (
@@ -505,6 +519,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addSubscription,
         updateSubscription,
         deleteSubscription,
+        paySubscription,
         refreshData: fetchAllData,
       }}
     >

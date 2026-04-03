@@ -286,6 +286,9 @@
     "failSave": "Failed to save subscription",
     "confirmDelete": "Are you sure you want to delete this subscription?",
     "upcoming": "Upcoming Payments",
-    "plannedFor": "Planned for {{date}}"
+    "plannedFor": "Planned for {{date}}",
+    "payNow": "Pay Now",
+    "paymentSuccess": "Payment recorded successfully",
+    "addDescription": "Enter the details for your recurring subscription service."
   }
 }

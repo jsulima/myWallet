@@ -214,11 +214,14 @@ export const subscriptionApi = {
     status?: string;
     startDate?: string;
     categoryId?: string;
+    walletId: string;
     note?: string;
   }) =>
     request<any>('/subscriptions', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
     request<any>(`/subscriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  pay: (id: string) =>
+    request<any>(`/subscriptions/${id}/pay`, { method: 'POST' }),
   delete: (id: string) =>
     request<any>(`/subscriptions/${id}`, { method: 'DELETE' }),
 };
