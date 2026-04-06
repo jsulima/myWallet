@@ -329,13 +329,15 @@ export default function SubscriptionsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                         <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full" onClick={() => handleEdit(sub)}>
-                            <Edit2 className="h-4 w-4" />
-                         </Button>
-                         <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full" onClick={() => handleDelete(sub.id)}>
-                            <Trash2 className="h-4 w-4" />
-                         </Button>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                         <div className="bg-white/95 backdrop-blur-sm shadow-md rounded-full p-1 border border-indigo-50 flex gap-0.5">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full group/btn transition-colors" onClick={() => handleEdit(sub)}>
+                                <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full group/btn transition-colors" onClick={() => handleDelete(sub.id)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                         </div>
                       </div>
                     </div>
                   </CardHeader>

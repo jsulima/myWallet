@@ -671,23 +671,25 @@ export default function BudgetPage() {
                                                             {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
                                                         </p>
                                                     </div>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className="h-7 w-7" 
-                                                            onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                                                        >
-                                                            <Edit2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className="h-7 w-7 text-red-500" 
-                                                            onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
+                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                                        <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5">
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="h-7 w-7 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" 
+                                                                onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                                                            >
+                                                                <Edit2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" 
+                                                                onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="space-y-1">
@@ -765,23 +767,25 @@ export default function BudgetPage() {
                                                 {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
                                               </p>
                                             </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7" 
-                                                onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                                              >
-                                                <Edit2 className="h-3.5 w-3.5" />
-                                              </Button>
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 text-red-500" 
-                                                onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
-                                              >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                              </Button>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                              <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5">
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  className="h-7 w-7 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" 
+                                                  onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                                                >
+                                                  <Edit2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" 
+                                                  onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                                                >
+                                                  <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                              </div>
                                             </div>
                                           </div>
                                           <div className="space-y-1">

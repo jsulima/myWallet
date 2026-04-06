@@ -436,9 +436,12 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {wallets.map((wallet, index) => (
-                    <div key={wallet.id} className="flex items-center gap-2 group">
-                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
+                    <div key={wallet.id} className="flex items-center gap-3 group relative py-1">
+                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all duration-300 -ml-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 p-0 hover:bg-indigo-50 hover:text-indigo-600 rounded-md transition-colors"
                           onClick={() => {
                             if (index > 0) {
                               const newIds = wallets.map(w => w.id);
@@ -447,11 +450,13 @@ export default function DashboardPage() {
                             }
                           }}
                           disabled={index === 0}
-                          className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30"
                         >
                           <ChevronUp className="h-4 w-4" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 p-0 hover:bg-indigo-50 hover:text-indigo-600 rounded-md transition-colors"
                           onClick={() => {
                             if (index < wallets.length - 1) {
                               const newIds = wallets.map(w => w.id);
@@ -460,10 +465,9 @@ export default function DashboardPage() {
                             }
                           }}
                           disabled={index === wallets.length - 1}
-                          className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30"
                         >
                           <ChevronDown className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </div>
                       <Link 
                         to={`/transactions?walletId=${wallet.id}`}
