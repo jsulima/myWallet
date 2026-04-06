@@ -19,6 +19,7 @@ export interface Wallet {
   name: string;
   currency: string;
   balance: number;
+  order: number;
 }
 
 export interface Category {
@@ -181,6 +182,7 @@ interface AppContextType {
   updateSubscription: (id: string, subscription: Partial<Subscription>) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
   paySubscription: (id: string) => Promise<void>;
+  reorderWallets: (walletIds: string[]) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -479,6 +481,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchAllData();
   };
 
+  const reorderWallets = async (walletIds: string[]) => {
+    // Optimistically update the order in local state
+    const currentWallets = [...wallets];
+    const newWallets = walletIds.map((id, index) => {
+      const wallet = currentWallets.find(w => w.id === id)!;
+      return { ...wallet, order: index };
+    }).sort((a, b) => a.order - b.order);
+    
+    setWallets(newWallets);
+    
+    try {
+      await walletApi.reorder(walletIds);
+    } catch (error) {
+      console.error('Failed to reorder wallets:', error);
+      // Revert to original wallets on failure
+      setWallets(currentWallets);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -520,6 +542,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateSubscription,
         deleteSubscription,
         paySubscription,
+        reorderWallets,
         refreshData: fetchAllData,
       }}
     >

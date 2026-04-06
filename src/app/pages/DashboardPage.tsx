@@ -10,7 +10,9 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
-  BarChart3
+  BarChart3,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -31,9 +33,10 @@ import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
+import { formatAmount } from '../components/ui/utils';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods } = useApp();
+  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods, reorderWallets } = useApp();
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   const { t } = useTranslation();
 
@@ -224,7 +227,7 @@ export default function DashboardPage() {
             <CardContent>
               {Object.entries(balanceByCurrency).map(([cur, amount]) => (
                 <div key={cur} className="text-2xl font-bold">
-                  {getCurrencySymbol(cur)}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {getCurrencySymbol(cur)}{formatAmount(amount)}
                 </div>
               ))}
               {Object.keys(balanceByCurrency).length === 0 && <div className="text-2xl font-bold">$0</div>}
@@ -242,7 +245,7 @@ export default function DashboardPage() {
             <CardContent>
               {Object.entries(periodIncomeByCurrency).map(([cur, amount]) => (
                 <div key={cur} className="text-2xl font-bold text-green-600">
-                  {getCurrencySymbol(cur)}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {getCurrencySymbol(cur)}{formatAmount(amount)}
                 </div>
               ))}
               {Object.keys(periodIncomeByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
@@ -260,7 +263,7 @@ export default function DashboardPage() {
             <CardContent>
               {Object.entries(periodExpensesByCurrency).map(([cur, amount]) => (
                 <div key={cur} className="text-2xl font-bold text-red-600">
-                  {getCurrencySymbol(cur)}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {getCurrencySymbol(cur)}{formatAmount(amount)}
                 </div>
               ))}
               {Object.keys(periodExpensesByCurrency).length === 0 && <div className="text-2xl font-bold text-red-600">$0</div>}
@@ -331,7 +334,7 @@ export default function DashboardPage() {
                               <p className="font-semibold">{data.name}</p>
                               <p className="text-sm text-gray-600 mb-1">{data.percentageRaw.toFixed(1)}% used</p>
                               <p className="text-xs text-gray-500">
-                                ${data.actual.toFixed(2)} / ${data.planned.toFixed(2)}
+                                ${formatAmount(data.actual)} / ${formatAmount(data.planned)}
                               </p>
                             </div>
                           );
@@ -400,7 +403,7 @@ export default function DashboardPage() {
                               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.fill }} />
                               <div>
                                 <p className="font-semibold text-sm" style={{ color: data.fill }}>{data.name}</p>
-                                <p className="text-gray-900 font-bold">${data.value.toFixed(2)}</p>
+                                <p className="text-gray-900 font-bold">${formatAmount(data.value)}</p>
                               </div>
                             </div>
                           );
@@ -432,22 +435,51 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {wallets.map((wallet) => (
-                    <Link 
-                      key={wallet.id} 
-                      to={`/transactions?walletId=${wallet.id}`}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium">{wallet.name}</p>
-                        <p className="text-sm text-gray-600">{wallet.currency}</p>
+                  {wallets.map((wallet, index) => (
+                    <div key={wallet.id} className="flex items-center gap-2 group">
+                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            if (index > 0) {
+                              const newIds = wallets.map(w => w.id);
+                              [newIds[index - 1], newIds[index]] = [newIds[index], newIds[index - 1]];
+                              reorderWallets(newIds);
+                            }
+                          }}
+                          disabled={index === 0}
+                          className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (index < wallets.length - 1) {
+                              const newIds = wallets.map(w => w.id);
+                              [newIds[index], newIds[index + 1]] = [newIds[index + 1], newIds[index]];
+                              reorderWallets(newIds);
+                            }
+                          }}
+                          disabled={index === wallets.length - 1}
+                          className="p-0.5 hover:bg-gray-200 rounded disabled:opacity-30"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
                       </div>
-                      <p className="font-bold">
-                        {getCurrencySymbol(wallet.currency)}{wallet.balance.toFixed(0)}
-                      </p>
-                    </Link>
+                      <Link 
+                        to={`/transactions?walletId=${wallet.id}`}
+                        className="flex-1 flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                      >
+                        <div>
+                          <p className="font-medium text-sm md:text-base">{wallet.name}</p>
+                          <p className="text-xs text-gray-600">{wallet.currency}</p>
+                        </div>
+                        <p className="font-bold">
+                          {getCurrencySymbol(wallet.currency)}{formatAmount(wallet.balance)}
+                        </p>
+                      </Link>
+                    </div>
                   ))}
-                  <Button asChild variant="outline" className="w-full" size="sm">
+                  <Button asChild variant="outline" className="w-full mt-2" size="sm">
                     <Link to="/add-wallet">
                       <Plus className="h-4 w-4 mr-2" />
                       {t('dashboard.addWallet')}
@@ -493,7 +525,7 @@ export default function DashboardPage() {
                         <div className="text-right">
                           <p className={`font-bold ${transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
                             {transaction.type === 'INCOME' ? '+' : '-'}
-                            {getCurrencySymbol(wallet?.currency || 'USD')}{transaction.amount.toFixed(0)}
+                            {getCurrencySymbol(wallet?.currency || 'USD')}{formatAmount(transaction.amount)}
                           </p>
                           <p className="text-xs text-gray-600">
                             {new Date(transaction.date).toLocaleDateString()}

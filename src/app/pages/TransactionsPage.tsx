@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
+import { formatAmount } from '../components/ui/utils';
 
 export default function TransactionsPage() {
   const { transactions, wallets, categories, addTransaction, deleteTransaction, budgetPeriods } = useApp();
@@ -230,11 +231,11 @@ export default function TransactionsPage() {
                   {transaction.type === 'TRANSFER' ? (
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-700">
-                        {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                        {wallet?.currency === 'USD' ? '$' : '₴'}{formatAmount(transaction.amount)}
                       </p>
                       {targetWallet && targetWallet.currency !== wallet?.currency && transaction.targetAmount && (
                         <p className="text-xs text-gray-500">
-                          {targetWallet.currency === 'USD' ? '$' : '₴'}{transaction.targetAmount.toFixed(2)}
+                          {targetWallet.currency === 'USD' ? '$' : '₴'}{formatAmount(transaction.targetAmount)}
                         </p>
                       )}
                     </div>
@@ -245,7 +246,7 @@ export default function TransactionsPage() {
                       }`}
                     >
                       {transaction.type === 'INCOME' ? '+' : '-'}
-                      {wallet?.currency === 'USD' ? '$' : '₴'}{transaction.amount.toFixed(2)}
+                      {wallet?.currency === 'USD' ? '$' : '₴'}{formatAmount(transaction.amount)}
                     </p>
                   )}
                 </div>

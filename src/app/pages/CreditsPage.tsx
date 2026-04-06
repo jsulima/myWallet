@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { formatAmount } from '../components/ui/utils';
 
 export default function CreditsPage() {
   const { t } = useTranslation();
@@ -201,7 +202,7 @@ export default function CreditsPage() {
               <CardContent>
                 {Object.entries(getDebtByCurrency()).map(([cur, amount]) => (
                   <div key={cur} className="text-2xl font-bold text-red-600">
-                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{amount.toFixed(0)}
+                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(amount)}
                   </div>
                 ))}
                 <p className="text-xs text-gray-600 mt-1">{t('credits.activeCredits', { count: credits.length })}</p>
@@ -216,7 +217,7 @@ export default function CreditsPage() {
               <CardContent>
                 {Object.entries(getMonthlyByCurrency()).map(([cur, amount]) => (
                   <div key={cur} className="text-2xl font-bold">
-                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{amount.toFixed(0)}
+                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(amount)}
                   </div>
                 ))}
                 <p className="text-xs text-gray-600 mt-1">{t('credits.totalPerMonth')}</p>
@@ -266,13 +267,13 @@ export default function CreditsPage() {
                       <div>
                         <p className="text-sm text-gray-600">{t('credits.remaining')}</p>
                         <p className="text-lg font-bold text-red-600">
-                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{(credit.remainingAmount ?? 0).toFixed(0)}
+                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(credit.remainingAmount ?? 0)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">{t('credits.total')}</p>
                         <p className="text-lg font-bold">
-                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{credit.totalAmount.toFixed(0)}
+                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(credit.totalAmount)}
                         </p>
                       </div>
                     </div>
@@ -282,7 +283,7 @@ export default function CreditsPage() {
                         <div>
                           <p className="text-sm text-gray-600">{t('credits.monthlyPayment')}</p>
                           <p className="font-semibold">
-                            {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{(credit.monthlyPayment ?? 0).toFixed(0)}
+                            {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(credit.monthlyPayment ?? 0)}
                           </p>
                         </div>
                         {credit.dueDate && (
@@ -342,7 +343,7 @@ export default function CreditsPage() {
                   <SelectContent>
                     {wallets.map(w => (
                       <SelectItem key={w.id} value={w.id}>
-                        {w.name} ({w.currency} ${w.balance.toFixed(2)})
+                        {w.name} ({w.currency} {formatAmount(w.balance)})
                       </SelectItem>
                     ))}
                   </SelectContent>

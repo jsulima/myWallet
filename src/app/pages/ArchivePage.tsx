@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { useTranslation } from 'react-i18next';
+import { formatAmount } from '../components/ui/utils';
 import { 
   BarChart, 
   Bar, 
@@ -106,7 +107,7 @@ export default function ArchivePage() {
                         <CardTitle className="text-xs font-semibold text-gray-500 uppercase">{t('archive.totalPlanned')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">${analytics.totalLimit.toFixed(0)}</div>
+                      <div className="text-2xl font-bold">${formatAmount(analytics.totalLimit)}</div>
                     </CardContent>
                   </Card>
                   <Card>
@@ -115,7 +116,7 @@ export default function ArchivePage() {
                     </CardHeader>
                     <CardContent>
                       <div className={`text-2xl font-bold ${analytics.totalSpent > analytics.totalLimit ? 'text-red-600' : 'text-green-600'}`}>
-                        ${analytics.totalSpent.toFixed(0)}
+                        ${formatAmount(analytics.totalSpent)}
                       </div>
                     </CardContent>
                   </Card>
@@ -208,7 +209,7 @@ export default function ArchivePage() {
                                             <span className="font-medium">{cat.categoryName}</span>
                                         </div>
                                         <span className="text-gray-500">
-                                            ${cat.spent.toFixed(0)} / ${cat.limit.toFixed(0)}
+                                            ${formatAmount(cat.spent)} / ${formatAmount(cat.limit)}
                                         </span>
                                     </div>
                                     <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">

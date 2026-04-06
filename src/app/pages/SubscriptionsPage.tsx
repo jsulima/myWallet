@@ -13,6 +13,7 @@ import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
+import { formatAmount } from '../components/ui/utils';
 
 export default function SubscriptionsPage() {
   const { t } = useTranslation();
@@ -272,7 +273,7 @@ export default function SubscriptionsPage() {
                         <SelectContent>
                           {wallets.map(w => (
                             <SelectItem key={w.id} value={w.id}>
-                              {w.name} ({w.balance} {w.currency})
+                              {w.name} ({formatAmount(w.balance)} {w.currency})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -342,7 +343,7 @@ export default function SubscriptionsPage() {
                     <div className="space-y-5">
                         <div className="flex items-baseline gap-1 mt-2">
                             <span className="text-4xl font-black text-gray-900">
-                                {sub.currency === 'USD' ? '$' : sub.currency === 'UAH' ? '₴' : sub.currency === 'EUR' ? '€' : sub.currency}{sub.amount.toLocaleString()}
+                                {sub.currency === 'USD' ? '$' : sub.currency === 'UAH' ? '₴' : sub.currency === 'EUR' ? '€' : sub.currency}{formatAmount(sub.amount)}
                             </span>
                             <span className="text-sm font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">
                                 / {t(`subscriptions.${sub.frequency.toLowerCase()}`)}
@@ -441,7 +442,7 @@ export default function SubscriptionsPage() {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-lg font-black text-gray-900">{sub.currency} {sub.amount.toLocaleString()}</p>
+                                            <p className="text-lg font-black text-gray-900">{sub.currency} {formatAmount(sub.amount)}</p>
                                             <div className="flex flex-col items-end gap-1">
                                                 <Badge variant="outline" className="text-[10px] uppercase font-black tracking-widest py-0 border-gray-200">{t(`subscriptions.${sub.frequency.toLowerCase()}`)}</Badge>
                                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{sub.wallet?.name}</span>

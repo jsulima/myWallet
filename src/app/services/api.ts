@@ -81,6 +81,8 @@ export const walletApi = {
     request<any>(`/wallets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/wallets/${id}`, { method: 'DELETE' }),
+  reorder: (walletIds: string[]) =>
+    request<any>('/wallets/reorder', { method: 'POST', body: JSON.stringify({ walletIds }) }),
 };
 
 // Categories

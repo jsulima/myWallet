@@ -15,6 +15,7 @@ import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { formatAmount } from '../components/ui/utils';
 
 export default function BudgetPage() {
   const { t } = useTranslation();
@@ -515,7 +516,7 @@ export default function BudgetPage() {
             <CardContent>
               {Object.entries(summaryByCurrency).map(([cur, data]) => (
                 <div key={cur} className="text-2xl font-bold">
-                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{data.planned.toFixed(0)}
+                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(data.planned)}
                 </div>
               ))}
               {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold">$0</div>}
@@ -528,8 +529,8 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent>
               {Object.entries(summaryByCurrency).map(([cur, data]) => (
-                <div key={cur} className={`text-2xl font-bold ${data.spent > data.planned ? 'text-red-600' : 'text-green-600'}`}>
-                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{data.spent.toFixed(0)}
+                <div key={cur} className="text-2xl font-bold text-green-600">
+                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(data.spent)}
                 </div>
               ))}
               {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
@@ -538,7 +539,7 @@ export default function BudgetPage() {
                 <div key={cur} className="flex items-center gap-3 mt-2">
                   <Progress value={data.planned > 0 ? (data.spent / data.planned) * 100 : 0} className="h-1 flex-1" />
                   <span className={`text-[10px] font-bold whitespace-nowrap ${data.planned - data.spent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{Math.abs(data.planned - data.spent).toFixed(0)} {data.planned - data.spent >= 0 ? t('budget.left') : t('budget.over')}
+                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(Math.abs(data.planned - data.spent))} {data.planned - data.spent >= 0 ? t('budget.left') : t('budget.over')}
                   </span>
                 </div>
               ))}
@@ -566,7 +567,7 @@ export default function BudgetPage() {
                 }, {} as Record<string, number>)
               ).map(([cur, total]) => (
                 <div key={cur} className="text-2xl font-bold text-blue-600">
-                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{total.toFixed(0)}
+                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(total)}
                 </div>
               ))}
               {draftBudgets.length === 0 && <div className="text-2xl font-bold text-blue-600">$0</div>}
@@ -692,9 +693,9 @@ export default function BudgetPage() {
                                                 <div className="space-y-1">
                                                     <div className="flex justify-between text-xs mb-1 items-center">
                                                         <span className="font-medium">
-                                                            {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{spentAmount.toFixed(0)}
+                                                            {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(spentAmount)}
                                                         </span>
-                                                        <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
+                                                        <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(bp.limit)}</span>
                                                     </div>
                                                     <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
                                                 </div>
@@ -705,7 +706,7 @@ export default function BudgetPage() {
                                         <p className="font-medium">
                                             {isOver ? t('budget.over') : t('budget.left')}: 
                                             <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                                                {currencySymbol}{Math.abs(delta).toFixed(0)}
+                                                {currencySymbol}{formatAmount(Math.abs(delta))}
                                             </span>
                                         </p>
                                     </TooltipContent>
@@ -786,9 +787,9 @@ export default function BudgetPage() {
                                           <div className="space-y-1">
                                             <div className="flex justify-between text-xs mb-1 items-center">
                                               <span className="font-medium">
-                                                  {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{spentAmount.toFixed(0)}
+                                                  {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(spentAmount)}
                                               </span>
-                                              <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{bp.limit.toFixed(0)}</span>
+                                              <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(bp.limit)}</span>
                                             </div>
                                             <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
                                           </div>
@@ -797,10 +798,10 @@ export default function BudgetPage() {
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
                                     <p className="font-medium">
-                                        {isOver ? t('budget.over') : t('budget.left')}: 
-                                        <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                                            {currencySymbol}{Math.abs(delta).toFixed(0)}
-                                        </span>
+                                            {isOver ? t('budget.over') : t('budget.left')}: 
+                                            <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
+                                                {currencySymbol}{formatAmount(Math.abs(delta))}
+                                            </span>
                                     </p>
                                 </TooltipContent>
                             </Tooltip>
