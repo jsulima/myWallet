@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import {
   authApi, walletApi, categoryApi, transactionApi,
   budgetApi, budgetPeriodApi, savingApi, creditApi,
-  subscriptionApi,
+  subscriptionApi, currencyApi,
   setToken, clearToken,
 } from '../services/api';
 import i18n from '../i18n/config';
@@ -106,6 +106,12 @@ export interface Subscription {
   wallet?: Wallet;
 }
 
+export interface CurrencyRate {
+  from: string;
+  to: string;
+  rate: number;
+}
+
 interface AppContextType {
   user: User | null;
   loading: boolean;
@@ -155,15 +161,16 @@ interface AppContextType {
   addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; currency?: string; deadline?: string }) => Promise<void>;
   updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
   credits: Credit[];
-  addCredit: (credit: { name: string; totalAmount: number; remainingAmount: number; currency?: string; interestRate: number; monthlyPayment: number; dueDate: string }) => Promise<void>;
+  addCredit: (credit: Omit<Credit, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'paidAmount'>) => Promise<void>;
   payCredit: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => Promise<void>;
+  deleteCredit: (id: string) => Promise<void>;
   budgetPlans: BudgetPlan[];
   addBudgetPlan: (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string; periodId?: string }) => Promise<void>;
   updateBudgetPlan: (id: string, budgetPlan: { limit?: number; startDate?: string; endDate?: string; status?: string; note?: string; currency?: string; periodId?: string }) => Promise<void>;
   deleteBudgetPlan: (id: string) => Promise<void>;
   budgetPeriods: BudgetPeriod[];
   addBudgetPeriod: (period: { name: string; startDate: string; endDate: string; status?: string }) => Promise<void>;
-  updateBudgetPeriod: (id: string, period: { name?: string; startDate?: string; endDate?: string; status?: string }) => Promise<void>;
+  updateBudgetPeriod: (id: string, period: { name?: string; startDate?: string; endDate: string; status?: string }) => Promise<void>;
   deleteBudgetPeriod: (id: string) => Promise<void>;
   cloneBudgetPeriod: (id: string) => Promise<void>;
   fetchPeriodAnalytics: (id: string) => Promise<any>;
@@ -184,6 +191,7 @@ interface AppContextType {
   paySubscription: (id: string) => Promise<void>;
   reorderWallets: (walletIds: string[]) => Promise<void>;
   refreshData: () => Promise<void>;
+  rates: CurrencyRate[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -199,6 +207,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [budgetPlans, setBudgetPlans] = useState<BudgetPlan[]>([]);
   const [budgetPeriods, setBudgetPeriods] = useState<BudgetPeriod[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [rates, setRates] = useState<CurrencyRate[]>([]);
 
   const fetchAllData = useCallback(async () => {
     try {
@@ -220,6 +229,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBudgetPlans(b);
       setBudgetPeriods(bp);
       setSubscriptions(sub);
+      const r = await currencyApi.getRates();
+      setRates(r);
     } catch (error) {
       console.error('Fetch All Data Error:', error);
     }
@@ -326,9 +337,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }) => {
     const created = await transactionApi.create(transaction);
     setTransactions(prev => [created, ...prev]);
-    // Refresh wallets to get updated balance
-    const updatedWallets = await walletApi.getAll();
+    // Refresh wallets and credits to get updated balance
+    const [updatedWallets, updatedCredits] = await Promise.all([
+      walletApi.getAll(),
+      creditApi.getAll()
+    ]);
     setWallets(updatedWallets);
+    setCredits(updatedCredits);
   };
 
   const updateTransaction = async (id: string, transaction: { 
@@ -343,17 +358,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }) => {
     const updated = await transactionApi.update(id, transaction);
     setTransactions(prev => prev.map(t => t.id === id ? updated : t));
-    // Refresh wallets to get updated balance
-    const updatedWallets = await walletApi.getAll();
+    // Refresh wallets and credits to get updated balance
+    const [updatedWallets, updatedCredits] = await Promise.all([
+      walletApi.getAll(),
+      creditApi.getAll()
+    ]);
     setWallets(updatedWallets);
+    setCredits(updatedCredits);
   };
 
   const deleteTransaction = async (id: string) => {
     await transactionApi.delete(id);
     setTransactions(prev => prev.filter(t => t.id !== id));
-    // Refresh wallets to get updated balance
-    const updatedWallets = await walletApi.getAll();
+    // Refresh wallets and credits to get updated balance
+    const [updatedWallets, updatedCredits] = await Promise.all([
+      walletApi.getAll(),
+      creditApi.getAll()
+    ]);
     setWallets(updatedWallets);
+    setCredits(updatedCredits);
   };
 
   const transferMoney = async (data: {
@@ -391,7 +414,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavingPlaces(prev => prev.map(sp => sp.id === id ? updated : sp));
   };
 
-  const addCredit = async (credit: { name: string; totalAmount: number; remainingAmount: number; currency?: string; interestRate: number; monthlyPayment: number; dueDate: string }) => {
+  const addCredit = async (credit: Omit<Credit, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'paidAmount'>) => {
     const created = await creditApi.create(credit);
     setCredits(prev => [...prev, created]);
   };
@@ -400,6 +423,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await creditApi.pay(id, data);
     // Refresh all data since this affects wallets, credits, and transactions
     await fetchAllData();
+  };
+
+  const deleteCredit = async (id: string) => {
+    await creditApi.delete(id);
+    setCredits(prev => prev.filter(c => c.id !== id));
   };
 
   const addBudgetPlan = async (budgetPlan: { categoryId: string; limit: number; startDate: string; endDate: string; status?: string; note?: string; currency?: string; periodId?: string }) => {
@@ -527,6 +555,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         credits,
         addCredit,
         payCredit,
+        deleteCredit,
         budgetPlans,
         addBudgetPlan,
         updateBudgetPlan,
@@ -544,6 +573,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         paySubscription,
         reorderWallets,
         refreshData: fetchAllData,
+        rates,
       }}
     >
       {children}

@@ -98,8 +98,16 @@ export const categoryApi = {
 
 // Transactions
 export const transactionApi = {
-  getAll: (walletId?: string) =>
-    request<any[]>(walletId ? `/transactions?walletId=${walletId}` : '/transactions'),
+  getAll: (walletId?: string, creditId?: string) => {
+    let url = '/transactions';
+    const params = new URLSearchParams();
+    if (walletId) params.append('walletId', walletId);
+    if (creditId) params.append('creditId', creditId);
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    return request<any[]>(url);
+  },
   create: (data: {
     walletId: string;
     categoryId: string;

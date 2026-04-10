@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, CreditCard, AlertCircle } from 'lucide-react';
+import { Plus, CreditCard, AlertCircle, History, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -12,13 +12,30 @@ import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatAmount } from '../components/ui/utils';
+import { transactionApi } from '../services/api';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 export default function CreditsPage() {
   const { t } = useTranslation();
-  const { credits, addCredit, payCredit, wallets, categories } = useApp();
+  const { credits, addCredit, payCredit, deleteCredit, wallets, categories, rates, deleteTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [payingCreditId, setPayingCreditId] = useState<string | null>(null);
+  const [historyCreditId, setHistoryCreditId] = useState<string | null>(null);
+  const [historyTransactions, setHistoryTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [creditToDelete, setCreditToDelete] = useState<string | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     totalAmount: '',
@@ -35,6 +52,26 @@ export default function CreditsPage() {
     amount: '',
     date: new Date().toISOString().split('T')[0],
   });
+
+  const selectedCredit = credits.find(c => c.id === payingCreditId);
+  const selectedWallet = wallets.find(w => w.id === payFormData.walletId);
+  
+  let conversionInfo = null;
+  if (selectedCredit && selectedWallet && payFormData.amount) {
+    const amount = parseFloat(payFormData.amount);
+    if (!isNaN(amount) && amount > 0) {
+      if (selectedCredit.currency !== selectedWallet.currency) {
+        const rateObj = rates.find(r => r.from === selectedCredit.currency && r.to === selectedWallet.currency);
+        if (rateObj) {
+          conversionInfo = {
+            walletAmount: amount * rateObj.rate,
+            rate: rateObj.rate,
+            currency: selectedWallet.currency
+          };
+        }
+      }
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +130,42 @@ export default function CreditsPage() {
       date: new Date().toISOString().split('T')[0],
     });
     setPayingCreditId(credit.id);
+  };
+
+  const openHistoryDialog = async (creditId: string) => {
+    setHistoryCreditId(creditId);
+    setIsHistoryLoading(true);
+    try {
+      const data = await transactionApi.getAll(undefined, creditId);
+      setHistoryTransactions(data);
+    } catch (error) {
+      toast.error('Failed to fetch payment history');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!transactionToDelete) return;
+    try {
+      await deleteTransaction(transactionToDelete);
+      setHistoryTransactions(prev => prev.filter(t => t.id !== transactionToDelete));
+      toast.success('Payment deleted');
+      setTransactionToDelete(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete payment');
+    }
+  };
+
+  const confirmDeleteCredit = async () => {
+    if (!creditToDelete) return;
+    try {
+      await deleteCredit(creditToDelete);
+      toast.success('Credit deleted');
+      setCreditToDelete(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete credit');
+    }
   };
 
   const getDebtByCurrency = () => {
@@ -246,11 +319,26 @@ export default function CreditsPage() {
                         </p>
                       </div>
                     </div>
-                    {isOverdue && (
-                      <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded">
-                        {t('credits.overdue')}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isOverdue && (
+                        <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded">
+                          {t('credits.overdue')}
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setCreditToDelete(credit.id);
+                        }}
+                        title="Delete Credit"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -306,14 +394,24 @@ export default function CreditsPage() {
                         </span>
                       </div>
 
-                      <Button 
-                        variant="outline" 
-                        className="w-full font-medium shadow-sm hover:bg-gray-50 bg-white" 
-                        onClick={() => openPayDialog(credit)}
-                        disabled={credit.remainingAmount <= 0}
-                      >
-                        {t('credits.makePayment')}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 font-medium shadow-sm hover:bg-gray-50 bg-white" 
+                          onClick={() => openPayDialog(credit)}
+                          disabled={credit.remainingAmount <= 0}
+                        >
+                          {t('credits.makePayment')}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="shrink-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => openHistoryDialog(credit.id)}
+                        >
+                          <History className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -321,6 +419,63 @@ export default function CreditsPage() {
             );
           })}
         </div>
+
+        {/* Payment History Dialog */}
+        <Dialog open={!!historyCreditId} onOpenChange={(open) => !open && setHistoryCreditId(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-blue-600" />
+                {t('credits.historyTitle')}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto pr-2">
+              {isHistoryLoading ? (
+                <div className="py-8 text-center text-gray-500">Loading history...</div>
+              ) : historyTransactions.length === 0 ? (
+                <div className="py-12 text-center text-gray-500 flex flex-col items-center gap-2">
+                  <History className="h-10 w-10 text-gray-200" />
+                  <p>{t('credits.noHistory')}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyTransactions.map((tx) => (
+                    <div key={tx.id} className="p-3 rounded-lg border border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3 group">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-500">
+                            {new Date(tx.date).toLocaleDateString()}
+                          </span>
+                          <span className="text-sm font-bold text-red-600">
+                            -{tx.wallet?.currency === 'USD' ? '$' : tx.wallet?.currency === 'UAH' ? '₴' : tx.wallet?.currency}{formatAmount(tx.amount)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 truncate font-medium">
+                          {tx.wallet?.name}
+                        </p>
+                        <p className="text-[11px] text-gray-500 truncate leading-tight mt-1">
+                          {tx.description}
+                        </p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="opacity-0 group-hover:opacity-100 h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setTransactionToDelete(tx.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Payment Dialog */}
         <Dialog open={!!payingCreditId} onOpenChange={(open) => !open && setPayingCreditId(null)}>
@@ -371,10 +526,25 @@ export default function CreditsPage() {
               </div>
 
               <div>
-                <Label htmlFor="payAmount">{t('credits.paymentAmount')}</Label>
+                <Label htmlFor="payAmount">{t('credits.paymentAmount')} ({selectedCredit?.currency})</Label>
                 <Input id="payAmount" type="number" step="0.01" placeholder="0.00"
                   value={payFormData.amount} onChange={(e) => setPayFormData({ ...payFormData, amount: e.target.value })} required />
               </div>
+
+              {conversionInfo && (
+                <div className="p-3 rounded-lg bg-orange-50 border border-orange-100 flex flex-col gap-1">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 font-medium">{t('credits.walletDeduction')}</span>
+                    <span className="text-orange-700 font-bold">
+                      {conversionInfo.currency === 'USD' ? '$' : conversionInfo.currency === 'UAH' ? '₴' : conversionInfo.currency} {formatAmount(conversionInfo.walletAmount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-500">{t('credits.exchangeRate')}</span>
+                    <span className="text-gray-600 font-mono">1 {selectedCredit?.currency} = {conversionInfo.rate.toFixed(4)} {conversionInfo.currency}</span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="payDate">{t('credits.date')}</Label>
@@ -400,6 +570,40 @@ export default function CreditsPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Credit Deletion Alert Dialog */}
+        <AlertDialog open={!!creditToDelete} onOpenChange={(open) => !open && setCreditToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action will delete the credit <b>"{credits.find(c => c.id === creditToDelete)?.name}"</b>. 
+                Past payment transactions will be kept as regular unlinked wallet expenses to balance your accounts.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteCredit} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Transaction Deletion Alert Dialog */}
+        <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this payment? The credit balance and your wallet balance will be automatically readjusted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteTransaction} className="bg-red-600 hover:bg-red-700">Delete Payment</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </div>
     </Layout>
   );

@@ -228,7 +228,11 @@
     "successAdd": "Credit added successfully!",
     "failAdd": "Failed to add credit",
     "successPay": "Payment recorded successfully!",
-    "failPay": "Failed to record payment"
+    "failPay": "Failed to record payment",
+    "walletDeduction": "Wallet Deduction",
+    "exchangeRate": "Exchange Rate",
+    "historyTitle": "Payment History",
+    "noHistory": "No payments recorded for this credit."
   },
   "savings": {
     "title": "Savings Goals",
