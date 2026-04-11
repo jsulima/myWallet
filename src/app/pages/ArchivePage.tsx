@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, BarChart3, ArrowUpRight, ArrowDownRight, History } from 'lucide-react';
+import { ChevronRight, BarChart3, ArrowUpRight, ArrowDownRight, History, Zap, ArrowRight, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
@@ -15,7 +15,10 @@ import {
   ResponsiveContainer, 
   Cell,
   PieChart as RePieChart,
-  Pie
+  Pie,
+  AreaChart,
+  Area,
+  Line
 } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
 
@@ -100,6 +103,56 @@ export default function ArchivePage() {
               </div>
             ) : analytics ? (
               <>
+                {/* Smart Recommendations (Phase 4) */}
+                <div className="space-y-4">
+                  {(analytics?.totalSpent > analytics?.totalLimit || analytics?.categories?.some((c: any) => c.spent > c.limit)) ? (
+                    <Card className="border-amber-200 bg-amber-50/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-800">
+                          <AlertCircle className="h-4 w-4" />
+                          {t('archive.recommendations')}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {analytics?.totalSpent > analytics?.totalLimit && (
+                            <p className="text-sm text-amber-900/80">
+                              {t('archive.recOverspent', { count: analytics?.categories?.filter((c: any) => c.spent > c.limit).length })}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {analytics?.categories
+                              ?.filter((c: any) => c.spent > c.limit)
+                              ?.slice(0, 3)
+                              ?.map((c: any) => (
+                                <div key={c.categoryId} className="bg-white/80 border border-amber-200 rounded px-2 py-1 flex items-center gap-2 shadow-sm">
+                                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                                  <span className="text-[10px] font-medium text-amber-900">
+                                    {t('archive.recAdjust', { category: c.categoryName })}
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-green-200 bg-green-50/50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-green-800">
+                          <CheckCircle2 className="h-4 w-4" />
+                          {t('archive.efficiency')}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-green-900/80">
+                          {t('archive.recUnderLimit')}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card>
@@ -107,7 +160,12 @@ export default function ArchivePage() {
                         <CardTitle className="text-xs font-semibold text-gray-500 uppercase">{t('archive.totalPlanned')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">${formatAmount(analytics.totalLimit)}</div>
+                      <div className="text-2xl font-bold">${formatAmount(analytics?.totalLimit || 0)}</div>
+                      {analytics?.previousPeriodSummary && (
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          vs {analytics.previousPeriodSummary.name}: ${formatAmount(analytics.previousPeriodSummary.totalLimit || 0)}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   <Card>
@@ -115,9 +173,20 @@ export default function ArchivePage() {
                         <CardTitle className="text-xs font-semibold text-gray-500 uppercase">{t('archive.totalSpent')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className={`text-2xl font-bold ${analytics.totalSpent > analytics.totalLimit ? 'text-red-600' : 'text-green-600'}`}>
-                        ${formatAmount(analytics.totalSpent)}
+                      <div className={`text-2xl font-bold ${(analytics?.totalSpent || 0) > (analytics?.totalLimit || 0) ? 'text-red-600' : 'text-green-600'}`}>
+                        ${formatAmount(analytics?.totalSpent || 0)}
                       </div>
+                      {analytics?.previousPeriodSummary && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className={`text-[10px] font-medium ${(analytics?.totalSpent || 0) <= (analytics?.previousPeriodSummary?.totalSpent || 0) ? 'text-green-500' : 'text-red-500'}`}>
+                            {(analytics?.totalSpent || 0) > (analytics?.previousPeriodSummary?.totalSpent || 0) ? '+' : ''}
+                            {analytics.previousPeriodSummary.totalSpent > 0 
+                              ? (((analytics.totalSpent - analytics.previousPeriodSummary.totalSpent) / analytics.previousPeriodSummary.totalSpent) * 100).toFixed(1) 
+                              : '0.0'}%
+                          </span>
+                          <span className="text-[10px] text-gray-400">vs {t('archive.previous')}</span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   <Card>
@@ -127,17 +196,74 @@ export default function ArchivePage() {
                     <CardContent>
                       <div className="flex items-center gap-2">
                         <div className="text-2xl font-bold">
-                          {analytics.totalLimit > 0 ? (100 - (analytics.totalSpent / analytics.totalLimit) * 100).toFixed(1) : 0}%
+                          {(analytics?.totalLimit || 0) > 0 ? (100 - ((analytics?.totalSpent || 0) / (analytics?.totalLimit || 1)) * 100).toFixed(1) : 0}%
                         </div>
-                        {analytics.totalLimit > analytics.totalSpent ? (
+                        {(analytics?.totalLimit || 0) > (analytics?.totalSpent || 0) ? (
                           <ArrowDownRight className="h-5 w-5 text-green-500" />
                         ) : (
                           <ArrowUpRight className="h-5 w-5 text-red-500" />
                         )}
                       </div>
+                      <div className="text-[10px] text-gray-400 mt-1">
+                        {(analytics?.totalSpent || 0) <= (analytics?.totalLimit || 0) ? t('archive.underBudget') : t('archive.overBudget')}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
+                
+                {/* Spending Dynamics Chart (Phase 1) */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold flex items-center justify-between">
+                      <span>{t('archive.spendingDynamics')}</span>
+                      <span className="text-xs font-normal text-gray-500">
+                        {analytics?.startDate ? new Date(analytics.startDate).toLocaleDateString() : ''} - {analytics?.endDate ? new Date(analytics.endDate).toLocaleDateString() : ''}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={analytics?.dailySpending || []}>
+                        <defs>
+                          <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          fontSize={10} 
+                          tickFormatter={(str) => new Date(str).getDate().toString()}
+                          tick={{ fill: '#9ca3af' }}
+                        />
+                        <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
+                        <Tooltip 
+                          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="cumulative" 
+                          stroke="#6366f1" 
+                          fillOpacity={1} 
+                          fill="url(#colorCumulative)" 
+                          strokeWidth={3}
+                          name={t('archive.totalSpent')}
+                        />
+                        {/* Reference line for linear budget distribution */}
+                        <Line 
+                          type="monotone" 
+                          dataKey={() => analytics?.totalLimit || 0} 
+                          stroke="#e5e7eb" 
+                          strokeDasharray="5 5" 
+                          dot={false}
+                          name={t('archive.totalLimit')}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
 
                 {/* Charts Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -147,7 +273,7 @@ export default function ArchivePage() {
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analytics.categories}>
+                        <BarChart data={analytics?.categories || []}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="categoryName" fontSize={10} tick={{ fill: '#9ca3af' }} />
                           <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
@@ -156,7 +282,7 @@ export default function ArchivePage() {
                           />
                           <Bar dataKey="limit" fill="#e5e7eb" name={t('archive.totalPlanned')} radius={[4, 4, 0, 0]} />
                           <Bar dataKey="spent" name={t('archive.totalSpent')} radius={[4, 4, 0, 0]}>
-                            {analytics.categories.map((entry: any, index: number) => (
+                            {analytics?.categories?.map((entry: any, index: number) => (
                               <Cell key={`cell-${index}`} fill={entry.spent > entry.limit ? '#ef4444' : '#10b981'} />
                             ))}
                           </Bar>
@@ -173,7 +299,7 @@ export default function ArchivePage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <RePieChart>
                           <Pie
-                            data={analytics.categories}
+                            data={analytics?.categories || []}
                             dataKey="spent"
                             nameKey="categoryName"
                             cx="50%"
@@ -183,13 +309,90 @@ export default function ArchivePage() {
                             paddingAngle={5}
                             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                           >
-                            {analytics.categories.map((entry: any, index: number) => (
+                            {analytics?.categories?.map((entry: any, index: number) => (
                               <Cell key={`cell-${index}`} fill={entry.color || '#6366f1'} />
                             ))}
                           </Pie>
                           <Tooltip />
                         </RePieChart>
                       </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* Deep Dives (Phase 2) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Top Hits */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-yellow-500" />
+                        {t('archive.topHits')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {analytics?.topTransactions?.map((tx: any) => (
+                          <div key={tx.id} className="flex justify-between items-center group hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-900 leading-tight">{tx.description}</span>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                <span className="uppercase text-[9px] px-1 bg-gray-100 rounded">{tx.categoryName}</span>
+                                <span>{new Date(tx.date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            <div className="text-sm font-bold text-gray-900">
+                              ${formatAmount(tx.amount)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Spending Composition */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-indigo-500" />
+                        {t('archive.composition')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-4 w-full bg-gray-100 rounded-full flex overflow-hidden mb-6">
+                        <div 
+                          className="bg-indigo-600 h-full transition-all duration-1000" 
+                          style={{ width: `${(analytics?.totalSpent || 0) > 0 ? ((analytics?.composition?.fixed || 0) / analytics.totalSpent) * 100 : 0}%` }} 
+                        />
+                        <div 
+                          className="bg-indigo-300 h-full transition-all duration-1000" 
+                          style={{ width: `${(analytics?.totalSpent || 0) > 0 ? ((analytics?.composition?.variable || 0) / analytics.totalSpent) * 100 : 0}%` }} 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500 font-medium">{t('archive.fixedExpenses')}</span>
+                          <span className="text-lg font-bold">${formatAmount(analytics?.composition?.fixed || 0)}</span>
+                          <span className="text-[10px] text-gray-400">
+                            {analytics?.totalSpent > 0 ? ((analytics?.composition?.fixed / analytics?.totalSpent) * 100).toFixed(0) : 0}% of total
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500 font-medium">{t('archive.variableExpenses')}</span>
+                          <span className="text-lg font-bold">${formatAmount(analytics?.composition?.variable || 0)}</span>
+                          <span className="text-[10px] text-gray-400">
+                            {analytics?.totalSpent > 0 ? ((analytics?.composition?.variable / analytics?.totalSpent) * 100).toFixed(0) : 0}% of total
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-6 flex items-start gap-2 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50">
+                        <ArrowRight className="h-3 w-3 text-indigo-500 mt-1 flex-shrink-0" />
+                        <p className="text-[11px] text-indigo-900/70 italic leading-relaxed">
+                          {(analytics?.composition?.fixed || 0) > (analytics?.composition?.variable || 0) 
+                            ? "Your fixed costs dominate this period. Consider reviewing subscriptions to increase flexibility. " 
+                            : "You have a high amount of variable spending. This is where you have the most control for savings! "}
+                        </p>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -201,7 +404,7 @@ export default function ArchivePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {analytics.categories.map((cat: any) => (
+                            {analytics?.categories?.map((cat: any) => (
                                 <div key={cat.categoryId} className="flex flex-col gap-1">
                                     <div className="flex justify-between items-center text-sm">
                                         <div className="flex items-center gap-2">
@@ -209,13 +412,13 @@ export default function ArchivePage() {
                                             <span className="font-medium">{cat.categoryName}</span>
                                         </div>
                                         <span className="text-gray-500">
-                                            ${formatAmount(cat.spent)} / ${formatAmount(cat.limit)}
+                                            ${formatAmount(cat?.spent || 0)} / ${formatAmount(cat?.limit || 0)}
                                         </span>
                                     </div>
                                     <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                         <div 
-                                            className={`h-full transition-all ${cat.spent > cat.limit ? 'bg-red-500' : 'bg-indigo-500'}`} 
-                                            style={{ width: `${Math.min(cat.percentage, 100)}%` }}
+                                            className={`h-full transition-all ${(cat?.spent || 0) > (cat?.limit || 0) ? 'bg-red-500' : 'bg-indigo-500'}`} 
+                                            style={{ width: `${Math.min(cat?.percentage || 0, 100)}%` }}
                                         />
                                     </div>
                                 </div>

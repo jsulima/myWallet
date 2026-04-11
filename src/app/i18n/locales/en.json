@@ -163,7 +163,20 @@
     "customRange": "Custom Date Range",
     "apply": "Apply Range",
     "analytics": "Analytics",
-    "efficiency": "Budget Efficiency"
+    "efficiency": "Budget Efficiency",
+    "spendingDynamics": "Spending Dynamics",
+    "previous": "previous",
+    "underBudget": "Under Budget",
+    "overBudget": "Over Budget",
+    "topHits": "Major Transactions (Top Hits)",
+    "composition": "Spending Composition",
+    "fixedExpenses": "Fixed Expenses",
+    "variableExpenses": "Variable Expenses",
+    "recommendations": "Smart Recommendations",
+    "recOverspent": "You overspent in {{count}} categories. Consider reviewing these limits for next month.",
+    "recUnderLimit": "Excellent control! You stayed under budget in most categories.",
+    "recNextSteps": "Next Steps",
+    "recAdjust": "Increase {{category}} limit slightly to match your actual needs."
   },
   "categories": {
     "title": "Categories",
