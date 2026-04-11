@@ -180,7 +180,9 @@
     "recOverspent": "You overspent in {{count}} categories. Consider reviewing these limits for next month.",
     "recUnderLimit": "Excellent control! You stayed under budget in most categories.",
     "recNextSteps": "Next Steps",
-    "recAdjust": "Increase {{category}} limit slightly to match your actual needs."
+    "recAdjust": "Increase {{category}} limit slightly to match your actual needs.",
+    "totalLimit": "Budget Limit",
+    "actualSpent": "Actual Spent"
   },
   "categories": {
     "title": "Categories",

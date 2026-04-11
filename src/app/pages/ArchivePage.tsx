@@ -18,7 +18,7 @@ import {
   Pie,
   AreaChart,
   Area,
-  Line,
+  ReferenceLine,
   Legend
 } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
@@ -224,42 +224,46 @@ export default function ArchivePage() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={analytics?.dailySpending || []}>
-                        <defs>
-                          <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
+                      <AreaChart data={analytics?.dailySpending || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                         <XAxis 
                           dataKey="date" 
+                          type="category"
                           fontSize={10} 
-                          tickFormatter={(str) => new Date(str).getDate().toString()}
+                          tickFormatter={(val) => {
+                            if (typeof val === 'string' && val.length >= 10) {
+                              return val.split('-')[2];
+                            }
+                            return val;
+                          }}
                           tick={{ fill: '#9ca3af' }}
                         />
-                        <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
+                        <YAxis 
+                          fontSize={10} 
+                          tick={{ fill: '#9ca3af' }}
+                          domain={[0, (dataMax: number) => Math.max(dataMax, (analytics?.totalLimit || 0) * 1.1)]}
+                        />
                         <Tooltip 
-                          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                          labelFormatter={(label) => {
+                            try { return new Date(label).toLocaleDateString(); } catch (e) { return label; }
+                          }}
                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         />
                         <Area 
-                          type="monotone" 
+                          type="linear" 
                           dataKey="cumulative" 
                           stroke="#6366f1" 
-                          fillOpacity={1} 
-                          fill="url(#colorCumulative)" 
-                          strokeWidth={3}
+                          fill="#6366f1"
+                          fillOpacity={0.3} 
+                          strokeWidth={2.5}
                           name={t('archive.totalSpent')}
+                          isAnimationActive={false}
                         />
-                        {/* Reference line for linear budget distribution */}
-                        <Line 
-                          type="monotone" 
-                          dataKey={() => analytics?.totalLimit || 0} 
-                          stroke="#e5e7eb" 
+                        <ReferenceLine 
+                          y={analytics?.totalLimit || 0} 
+                          stroke="#ef4444" 
                           strokeDasharray="5 5" 
-                          dot={false}
-                          name={t('archive.totalLimit')}
+                          label={{ value: t('archive.totalLimit'), position: 'top', fill: '#ef4444', fontSize: 10 }}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
