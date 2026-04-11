@@ -109,8 +109,8 @@ export default function SubscriptionsPage() {
 
   const stats = useMemo(() => {
     const { start, end } = periodRange;
-    
-    // Total spent in period for subscriptions (linked transactions)
+    const isAllTime = selectedPeriodId === 'all-time';
+
     const periodSubTransactions = transactions.filter(t => {
       if (!t.subscriptionId) return false;
       const d = new Date(t.date);
@@ -125,15 +125,34 @@ export default function SubscriptionsPage() {
     const activeSubscriptions = subscriptions.filter(s => s.status === 'ACTIVE');
     const pausedSubscriptions = subscriptions.filter(s => s.status === 'PAUSED');
 
+    const calculateMonthlyEquivalent = (amount: number, frequency: string) => {
+      switch (frequency) {
+        case 'DAILY': return amount * 30.4375;
+        case 'WEEKLY': return amount * 4.345;
+        case 'MONTHLY': return amount;
+        case 'YEARLY': return amount / 12;
+        default: return amount;
+      }
+    };
+
     const totalPlannedUSD = activeSubscriptions.reduce((acc, sub) => {
+      if (isAllTime) {
+        return acc + convertToUSD(calculateMonthlyEquivalent(sub.amount, sub.frequency), sub.currency);
+      }
       const occurrences = countOccurrences(sub.startDate, sub.frequency, start, end);
       return acc + (convertToUSD(sub.amount, sub.currency) * occurrences);
     }, 0);
 
     const totalPausedUSD = pausedSubscriptions.reduce((acc, sub) => {
+      if (isAllTime) {
+        return acc + convertToUSD(calculateMonthlyEquivalent(sub.amount, sub.frequency), sub.currency);
+      }
       const occurrences = countOccurrences(sub.startDate, sub.frequency, start, end);
       return acc + (convertToUSD(sub.amount, sub.currency) * occurrences);
     }, 0);
+
+    // Track which subscriptions are paid in this period
+    const paidSubIds = new Set(periodSubTransactions.map(t => t.subscriptionId));
 
     return {
       totalSpentUSD,
@@ -141,9 +160,11 @@ export default function SubscriptionsPage() {
       totalPausedUSD,
       activeCount: activeSubscriptions.length,
       pausedCount: pausedSubscriptions.length,
-      periodTransactions: periodSubTransactions
+      periodTransactions: periodSubTransactions,
+      paidSubIds,
+      isAllTime,
     };
-  }, [periodRange, transactions, wallets, subscriptions, rates]);
+  }, [periodRange, transactions, wallets, subscriptions, rates, selectedPeriodId]);
 
   const filteredSubscriptions = useMemo(() => {
     if (viewTab === 'all') return subscriptions;
@@ -531,15 +552,21 @@ export default function SubscriptionsPage() {
                     </div>
                     <div className="mt-6 flex flex-col">
                       <p className="text-indigo-100/70 font-black text-[10px] uppercase tracking-widest mb-1">
-                        {t('subscriptions.totalPaidVsPlanned', "Paid / Planned in period")}
+                        {stats.isAllTime 
+                          ? t('subscriptions.monthlyRunRate', "Monthly Run Rate")
+                          : t('subscriptions.totalPaidVsPlanned', "Paid / Planned in period")}
                       </p>
                       <CardTitle className="text-4xl font-black leading-tight flex items-baseline gap-2">
                           <span className="flex items-baseline gap-0.5">
                             <span className="text-xl opacity-60 font-bold">$</span>
                             {formatAmount(stats.totalSpentUSD)}
                           </span>
-                          <span className="text-2xl opacity-40 font-light mx-1">/</span>
-                          <span className="flex items-baseline gap-0.5 opacity-80 decoration-indigo-300 decoration-2">
+                          {!stats.isAllTime && <span className="text-2xl opacity-40 font-light mx-1">/</span>}
+                          {stats.isAllTime && <span className="text-lg opacity-40 font-light mx-2">expected</span>}
+                          <span className={cn(
+                            "flex items-baseline gap-0.5 opacity-80 decoration-indigo-300 decoration-2",
+                            stats.isAllTime && "text-white/60"
+                          )}>
                             <span className="text-sm font-bold">$</span>
                             {formatAmount(stats.totalPlannedUSD)}
                           </span>
@@ -639,17 +666,35 @@ export default function SubscriptionsPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge className={cn("rounded-full px-3 py-1 font-black text-[10px] border tracking-wider uppercase flex w-fit items-center gap-1.5", getStatusColor(sub.status))}>
-                              <div className={cn("w-1 h-1 rounded-full", sub.status === 'ACTIVE' ? "bg-emerald-500" : "bg-slate-400")} />
-                              {t(`subscriptions.${sub.status.toLowerCase()}`)}
-                            </Badge>
+                            <div className="flex flex-col gap-1.5">
+                              <Badge className={cn("rounded-full px-3 py-1 font-black text-[10px] border tracking-wider uppercase flex w-fit items-center gap-1.5", getStatusColor(sub.status))}>
+                                <div className={cn("w-1 h-1 rounded-full", sub.status === 'ACTIVE' ? "bg-emerald-500" : "bg-slate-400")} />
+                                {t(`subscriptions.${sub.status.toLowerCase()}`)}
+                              </Badge>
+                              {!stats.isAllTime && (
+                                <Badge variant="outline" className={cn(
+                                  "rounded-full px-2 py-0.5 font-black text-[9px] border tracking-tighter uppercase flex w-fit items-center gap-1",
+                                  stats.paidSubIds.has(sub.id) 
+                                    ? "bg-indigo-50 text-indigo-600 border-indigo-100" 
+                                    : "bg-slate-50 text-slate-400 border-slate-100"
+                                )}>
+                                  {stats.paidSubIds.has(sub.id) 
+                                    ? <><RefreshCcw className="h-2.5 w-2.5" /> {t('common.paid', "Paid")}</>
+                                    : <><Calendar className="h-2.5 w-2.5" /> {t('common.pending', "Pending")}</>}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className={cn(
                               "flex flex-col px-3 py-1.5 rounded-xl border w-fit font-bold",
-                              isDueSoon && sub.status === 'ACTIVE' ? "bg-rose-50 border-rose-100 text-rose-600" : "bg-slate-50 border-slate-100 text-slate-600"
+                              isDueSoon && sub.status === 'ACTIVE' && (stats.isAllTime || !stats.paidSubIds.has(sub.id)) ? "bg-rose-50 border-rose-100 text-rose-600" : 
+                              !stats.isAllTime && stats.paidSubIds.has(sub.id) ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                              "bg-slate-50 border-slate-100 text-slate-600"
                             )}>
-                               <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">{t('subscriptions.nextPayment')}</span>
+                               <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">
+                                 {!stats.isAllTime && stats.paidSubIds.has(sub.id) ? t('subscriptions.nextPayment') : t('subscriptions.dueOn', "Due Date")}
+                               </span>
                                <span className="text-sm leading-none">{format(nextDate, 'MMM d, yyyy')}</span>
                             </div>
                           </TableCell>

@@ -82,7 +82,9 @@
     "savedSuccessfully": "Saved successfully!",
     "areYouSure": "Are you absolutely sure?",
     "deleting": "Deleting...",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "paid": "Paid",
+    "pending": "Pending"
   },
   "budget": {
     "title": "Agile Budgeting",
@@ -317,7 +319,9 @@
     "plannedFor": "Planned for {{date}}",
     "payNow": "Pay Now",
     "paymentSuccess": "Payment recorded successfully",
-    "addDescription": "Enter the details for your recurring subscription service."
+    "addDescription": "Enter the details for your recurring subscription service.",
+    "monthlyRunRate": "Monthly Run Rate",
+    "dueOn": "Due Date"
   },
   "wallet": {
     "editWallet": "Edit Wallet",
