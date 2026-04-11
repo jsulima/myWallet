@@ -98,11 +98,12 @@ export const categoryApi = {
 
 // Transactions
 export const transactionApi = {
-  getAll: (walletId?: string, creditId?: string) => {
+  getAll: (walletId?: string, creditId?: string, subscriptionId?: string) => {
     let url = '/transactions';
     const params = new URLSearchParams();
     if (walletId) params.append('walletId', walletId);
     if (creditId) params.append('creditId', creditId);
+    if (subscriptionId) params.append('subscriptionId', subscriptionId);
     if (params.toString()) {
       url += `?${params.toString()}`;
     }

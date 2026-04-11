@@ -42,6 +42,7 @@ export interface Transaction {
   description: string;
   date: string;
   createdAt: string;
+  subscriptionId?: string;
   category?: Category;
   wallet?: Wallet;
   targetWallet?: Wallet;
