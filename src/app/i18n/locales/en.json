@@ -78,7 +78,11 @@
     "cancel": "Cancel",
     "edit": "Edit",
     "delete": "Delete",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "savedSuccessfully": "Saved successfully!",
+    "areYouSure": "Are you absolutely sure?",
+    "deleting": "Deleting...",
+    "saving": "Saving..."
   },
   "budget": {
     "title": "Agile Budgeting",
@@ -312,5 +316,13 @@
     "payNow": "Pay Now",
     "paymentSuccess": "Payment recorded successfully",
     "addDescription": "Enter the details for your recurring subscription service."
+  },
+  "wallet": {
+    "editWallet": "Edit Wallet",
+    "editDescription": "Update your wallet name, currency, or balance.",
+    "name": "Wallet Name",
+    "currency": "Currency",
+    "balance": "Balance",
+    "deleteWarning": "This action cannot be undone. This will permanently delete your wallet and all associated transactions."
   }
 }

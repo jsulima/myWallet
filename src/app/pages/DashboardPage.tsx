@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { 
-  Wallet, 
+  Wallet as WalletIcon, 
   TrendingUp, 
   TrendingDown, 
   PiggyBank, 
@@ -12,7 +12,8 @@ import {
   ArrowDownRight,
   BarChart3,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Edit2
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -29,16 +30,19 @@ import {
 } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { useApp } from '../context/AppContext';
+import { useApp, Wallet } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { formatAmount } from '../components/ui/utils';
+import EditWalletDialog from '../components/EditWalletDialog';
 
 export default function DashboardPage() {
   const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods, reorderWallets } = useApp();
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   const { t } = useTranslation();
+  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     currencyApi.getRates().then(setRates).catch(console.error);
@@ -222,7 +226,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">{t('dashboard.totalBalance')}</CardTitle>
-              <Wallet className="h-4 w-4 text-gray-600" />
+              <WalletIcon className="h-4 w-4 text-gray-600" />
             </CardHeader>
             <CardContent>
               {Object.entries(balanceByCurrency).map(([cur, amount]) => (
@@ -427,7 +431,7 @@ export default function DashboardPage() {
             <CardContent>
               {wallets.length === 0 ? (
                 <div className="text-center py-8">
-                  <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <WalletIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 mb-4">{t('dashboard.noWallets')}</p>
                   <Button asChild size="sm">
                     <Link to="/add-wallet">{t('dashboard.createWallet')}</Link>
@@ -467,6 +471,19 @@ export default function DashboardPage() {
                           disabled={index === wallets.length - 1}
                         >
                           <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 mr-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 p-0 hover:bg-slate-100 hover:text-indigo-600 rounded-md transition-colors"
+                          onClick={() => {
+                            setEditingWallet(wallet);
+                            setIsEditOpen(true);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
                         </Button>
                       </div>
                       <Link 
@@ -547,6 +564,12 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      <EditWalletDialog 
+        wallet={editingWallet}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
     </Layout>
   );
 }

@@ -18,7 +18,8 @@ import {
   Pie,
   AreaChart,
   Area,
-  Line
+  Line,
+  Legend
 } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
 
@@ -273,9 +274,16 @@ export default function ArchivePage() {
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analytics?.categories || []}>
+                        <BarChart data={analytics?.categories || []} margin={{ bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="categoryName" fontSize={10} tick={{ fill: '#9ca3af' }} />
+                          <XAxis 
+                            dataKey="categoryName" 
+                            fontSize={10} 
+                            tick={{ fill: '#9ca3af' }}
+                            interval={0}
+                            angle={-45}
+                            textAnchor="end"
+                          />
                           <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
                           <Tooltip 
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
@@ -307,13 +315,14 @@ export default function ArchivePage() {
                             innerRadius={60}
                             outerRadius={80}
                             paddingAngle={5}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
                           >
                             {analytics?.categories?.map((entry: any, index: number) => (
                               <Cell key={`cell-${index}`} fill={entry.color || '#6366f1'} />
                             ))}
                           </Pie>
                           <Tooltip />
+                          <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
                         </RePieChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -332,20 +341,27 @@ export default function ArchivePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {analytics?.topTransactions?.map((tx: any) => (
-                          <div key={tx.id} className="flex justify-between items-center group hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium text-gray-900 leading-tight">{tx.description}</span>
-                              <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                                <span className="uppercase text-[9px] px-1 bg-gray-100 rounded">{tx.categoryName}</span>
-                                <span>{new Date(tx.date).toLocaleDateString()}</span>
+                        {(analytics?.topTransactions?.length || 0) > 0 ? (
+                          analytics?.topTransactions?.map((tx: any) => (
+                            <div key={tx.id} className="flex justify-between items-center group hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-900 leading-tight">{tx.description}</span>
+                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                  <span className="uppercase text-[9px] px-1 bg-gray-100 rounded">{tx.categoryName}</span>
+                                  <span>{new Date(tx.date).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                              <div className="text-sm font-bold text-gray-900">
+                                ${formatAmount(tx.amount)}
                               </div>
                             </div>
-                            <div className="text-sm font-bold text-gray-900">
-                              ${formatAmount(tx.amount)}
-                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                            <BarChart3 className="h-8 w-8 opacity-20 mb-2" />
+                            <p className="text-xs">{t('dashboard.noData')}</p>
                           </div>
-                        ))}
+                        )}
                       </div>
                     </CardContent>
                   </Card>

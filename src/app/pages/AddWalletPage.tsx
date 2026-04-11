@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Wallet } from 'lucide-react';
+import { Wallet as WalletIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -27,6 +27,7 @@ export default function AddWalletPage() {
         name: formData.name,
         currency: formData.currency,
         balance: parseFloat(formData.balance) || 0,
+        order: 0,
       });
 
       toast.success('Wallet created successfully!');
@@ -43,7 +44,7 @@ export default function AddWalletPage() {
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="flex items-center justify-center mb-6">
           <div className="bg-indigo-600 p-2 rounded-full">
-            <Wallet className="h-8 w-8 text-white" />
+            <WalletIcon className="h-8 w-8 text-white" />
           </div>
         </div>
         
@@ -52,9 +53,10 @@ export default function AddWalletPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="name">Wallet Name</Label>
+            <Label htmlFor="wallet-name">Wallet Name</Label>
             <Input
-              id="name"
+              id="wallet-name"
+              name="walletName"
               type="text"
               placeholder="e.g., Main Wallet, Savings, Cash"
               value={formData.name}
@@ -64,12 +66,13 @@ export default function AddWalletPage() {
           </div>
 
           <div>
-            <Label htmlFor="currency">Currency</Label>
+            <Label htmlFor="wallet-currency">Currency</Label>
             <Select
+              name="walletCurrency"
               value={formData.currency}
               onValueChange={(value) => setFormData({ ...formData, currency: value })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="wallet-currency">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -80,9 +83,10 @@ export default function AddWalletPage() {
           </div>
 
           <div>
-            <Label htmlFor="balance">Initial Balance</Label>
+            <Label htmlFor="wallet-balance">Initial Balance</Label>
             <Input
-              id="balance"
+              id="wallet-balance"
+              name="walletBalance"
               type="number"
               step="0.01"
               placeholder="0.00"

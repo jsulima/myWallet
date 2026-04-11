@@ -191,6 +191,7 @@ interface AppContextType {
   deleteSubscription: (id: string) => Promise<void>;
   paySubscription: (id: string) => Promise<void>;
   reorderWallets: (walletIds: string[]) => Promise<void>;
+  deleteWallet: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
   rates: CurrencyRate[];
 }
@@ -314,6 +315,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateWallet = async (id: string, wallet: Partial<Wallet>) => {
     const updated = await walletApi.update(id, wallet);
     setWallets(prev => prev.map(w => w.id === id ? updated : w));
+  };
+
+  const deleteWallet = async (id: string) => {
+    await walletApi.delete(id);
+    setWallets(prev => prev.filter(w => w.id !== id));
+    // Also refresh other data as deleting a wallet might affect transactions/subscriptions
+    await fetchAllData();
   };
 
   const addCategory = async (category: { name: string; type: string; color?: string; icon?: string }) => {
@@ -573,6 +581,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteSubscription,
         paySubscription,
         reorderWallets,
+        deleteWallet,
         refreshData: fetchAllData,
         rates,
       }}
