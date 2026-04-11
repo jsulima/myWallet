@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 // Subscription Page Component
 import { Plus, RefreshCcw, Calendar, Trash2, Edit2, Play, Pause, ChevronRight, History, Wallet, Info, CreditCard } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -11,16 +11,18 @@ import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { useApp, Subscription, Transaction } from '../context/AppContext';
 import Layout from '../components/Layout';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { format, parseISO } from 'date-fns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { format, parseISO, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { formatAmount } from '../components/ui/utils';
-import { transactionApi } from '../services/api';
+import { transactionApi, currencyApi } from '../services/api';
 import { cn } from '../components/ui/utils';
 
 export default function SubscriptionsPage() {
   const { t } = useTranslation();
-  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, categories, wallets } = useApp();
+  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, categories, wallets, budgetPeriods, transactions } = useApp();
   
   // States
   const [isOpen, setIsOpen] = useState(false);
@@ -29,7 +31,17 @@ export default function SubscriptionsPage() {
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [subToDelete, setSubToDelete] = useState<string | null>(null);
   const [historyTransactions, setHistoryTransactions] = useState<Transaction[]>([]);
+  const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
+  
+  // Filtering States
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(() => {
+    const active = budgetPeriods.find(p => p.status === 'ACTIVE');
+    return active ? active.id : 'this-month';
+  });
+  const [viewTab, setViewTab] = useState('relevant');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -41,6 +53,116 @@ export default function SubscriptionsPage() {
     walletId: '',
     note: '',
   });
+
+  useEffect(() => {
+    currencyApi.getRates().then(setRates).catch(console.error);
+  }, []);
+
+  const convertToUSD = (amount: number, currency: string) => {
+    if (currency === 'USD') return amount;
+    const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
+    if (rateEntry) return amount * rateEntry.rate;
+    if (currency === 'UAH') return amount / 40;
+    return amount;
+  };
+
+  const countOccurrences = (startDateStr: string, frequency: string, periodStart: Date, periodEnd: Date) => {
+    let count = 0;
+    let current = parseISO(startDateStr);
+    
+    // Safety break
+    let iterations = 0;
+    const maxIterations = 500;
+
+    while (current <= periodEnd && iterations < maxIterations) {
+      if (current >= periodStart) {
+        count++;
+      }
+      
+      try {
+        switch (frequency) {
+          case 'DAILY': current = addDays(current, 1); break;
+          case 'WEEKLY': current = addWeeks(current, 1); break;
+          case 'MONTHLY': current = addMonths(current, 1); break;
+          case 'YEARLY': current = addYears(current, 1); break;
+          default: iterations = maxIterations; break;
+        }
+      } catch (e) {
+        break;
+      }
+      iterations++;
+    }
+    return count;
+  };
+
+  const periodRange = useMemo(() => {
+    const period = budgetPeriods.find(p => p.id === selectedPeriodId);
+    if (period) {
+      return { start: new Date(period.startDate), end: new Date(period.endDate) };
+    }
+    if (selectedPeriodId === 'this-month') {
+      const now = new Date();
+      return { start: startOfMonth(now), end: endOfMonth(now) };
+    }
+    return { start: new Date(0), end: new Date(8640000000000000) }; // All time
+  }, [selectedPeriodId, budgetPeriods]);
+
+  const stats = useMemo(() => {
+    const { start, end } = periodRange;
+    
+    // Total spent in period for subscriptions (linked transactions)
+    const periodSubTransactions = transactions.filter(t => {
+      if (!t.subscriptionId) return false;
+      const d = new Date(t.date);
+      return d >= start && d <= end;
+    });
+
+    const totalSpentUSD = periodSubTransactions.reduce((acc, t) => {
+      const wallet = wallets.find(w => w.id === t.walletId);
+      return acc + convertToUSD(t.amount, wallet?.currency || 'USD');
+    }, 0);
+
+    const activeSubscriptions = subscriptions.filter(s => s.status === 'ACTIVE');
+    const pausedSubscriptions = subscriptions.filter(s => s.status === 'PAUSED');
+
+    const totalPlannedUSD = activeSubscriptions.reduce((acc, sub) => {
+      const occurrences = countOccurrences(sub.startDate, sub.frequency, start, end);
+      return acc + (convertToUSD(sub.amount, sub.currency) * occurrences);
+    }, 0);
+
+    const totalPausedUSD = pausedSubscriptions.reduce((acc, sub) => {
+      const occurrences = countOccurrences(sub.startDate, sub.frequency, start, end);
+      return acc + (convertToUSD(sub.amount, sub.currency) * occurrences);
+    }, 0);
+
+    return {
+      totalSpentUSD,
+      totalPlannedUSD,
+      totalPausedUSD,
+      activeCount: activeSubscriptions.length,
+      pausedCount: pausedSubscriptions.length,
+      periodTransactions: periodSubTransactions
+    };
+  }, [periodRange, transactions, wallets, subscriptions, rates]);
+
+  const filteredSubscriptions = useMemo(() => {
+    if (viewTab === 'all') return subscriptions;
+
+    const { start, end } = periodRange;
+    return subscriptions.filter(sub => {
+      // Relevant if it has a payment in this period
+      const hasPayment = stats.periodTransactions.some(t => t.subscriptionId === sub.id);
+      
+      // OR if its next payment date falls within this period
+      let isDue = false;
+      if (sub.nextPaymentDate) {
+        const nextDate = new Date(sub.nextPaymentDate);
+        isDue = nextDate >= start && nextDate <= end;
+      }
+
+      return hasPayment || isDue;
+    });
+  }, [viewTab, subscriptions, periodRange, stats.periodTransactions]);
 
   const resetForm = () => {
     setFormData({
@@ -108,14 +230,23 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('subscriptions.confirmDelete'))) return;
+  const handleDelete = (id: string) => {
+    setSubToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const onConfirmDelete = async () => {
+    if (!subToDelete) return;
     try {
-      await deleteSubscription(id);
+      await deleteSubscription(subToDelete);
       setDetailsOpen(false);
       setSelectedSub(null);
+      setIsDeleteDialogOpen(false);
+      toast.success(t('common.successDelete', "Deleted successfully"));
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete');
+    } finally {
+      setSubToDelete(null);
     }
   };
 
@@ -342,113 +473,204 @@ export default function SubscriptionsPage() {
           </Dialog>
         </div>
 
-        {/* Main Content Table Area */}
-        {subscriptions.length > 0 ? (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-xl ring-1 ring-slate-100">
-              <Table>
-                <TableHeader className="bg-slate-50/50">
-                  <TableRow className="hover:bg-transparent border-slate-100">
-                    <TableHead className="w-[300px] font-black uppercase tracking-widest text-[10px] text-slate-400 pl-8">{t('subscriptions.name')}</TableHead>
-                    <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('subscriptions.amount')}</TableHead>
-                    <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('transactions.category', "Category")}</TableHead>
-                    <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('subscriptions.status')}</TableHead>
-                    <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('subscriptions.nextPayment')}</TableHead>
-                    <TableHead className="w-[100px] text-right pr-8"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subscriptions.map((sub) => {
-                    const nextDate = parseISO(sub.nextPaymentDate);
-                    const isDueSoon = (nextDate.getTime() - new Date().getTime()) < (1000 * 60 * 60 * 24 * 3); // 3 days
-                    
-                    return (
-                      <TableRow 
-                        key={sub.id} 
-                        className="group cursor-pointer hover:bg-indigo-50/30 transition-all border-slate-50 h-20"
-                        onClick={() => openDetails(sub)}
-                      >
-                        <TableCell className="pl-8">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg transition-all shadow-sm ring-1 ring-slate-100 group-hover:scale-110",
-                              sub.status === 'ACTIVE' ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-400"
-                            )}>
-                              {sub.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-black text-slate-900 text-base">{sub.name}</span>
-                              <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{sub.wallet?.name}</span>
-                            </div>
+        {/* Filter Bar & Quick Stats */}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="space-y-4 flex-1">
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-indigo-500" />
+              {t('dashboard.periodLabel', "Analysis Period")}
+            </h3>
+            <div className="flex flex-wrap items-center gap-4">
+              <Select value={selectedPeriodId} onValueChange={(v) => setSelectedPeriodId(v)}>
+                <SelectTrigger className="w-[240px] h-12 rounded-xl border-slate-200 bg-slate-50 font-bold">
+                  <SelectValue placeholder={t('budget.selectPeriod', "Select budget period")} />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl shadow-xl border-slate-100">
+                  <SelectItem value="this-month" className="font-bold">{t('dashboard.thisMonth')}</SelectItem>
+                  {budgetPeriods.map(p => (
+                    <SelectItem key={p.id} value={p.id} className="font-semibold">{p.name}</SelectItem>
+                  ))}
+                  <SelectItem value="all-time" className="font-bold">{t('common.allTime', "All Time")}</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <div className="px-4 py-2.5 bg-indigo-50 rounded-xl border border-indigo-100">
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter leading-none mb-1">{t('common.dateRange', "Date Range")}</p>
+                <p className="text-sm font-bold text-indigo-600 leading-none">
+                  {selectedPeriodId === 'all-time' ? t('common.allTime') : `${format(periodRange.start, 'MMM d')} – ${format(periodRange.end, 'MMM d, yyyy')}`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Tabs value={viewTab} onValueChange={setViewTab} className="w-full lg:w-auto mt-4 lg:mt-0">
+            <TabsList className="h-12 bg-slate-100 p-1 rounded-xl">
+              <TabsTrigger value="relevant" className="rounded-lg px-6 font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
+                {t('subscriptions.relevantToPeriod', "Period View")}
+              </TabsTrigger>
+              <TabsTrigger value="all" className="rounded-lg px-6 font-bold data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
+                {t('common.all', "All Subscriptions")}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Quick Summary Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-700 delay-200">
+            <Card className="border-none shadow-xl rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-violet-800 text-white overflow-hidden group relative">
+                <CardHeader className="relative z-10 pb-2">
+                    <div className="flex justify-between items-start">
+                          <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shadow-inner">
+                            <RefreshCcw className="h-6 w-6" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-black text-slate-900 text-lg">
-                              {getCurrencySymbol(sub.currency)}{formatAmount(sub.amount)}
-                            </span>
-                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
-                               / {t(`subscriptions.${sub.frequency.toLowerCase()}`)}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {sub.category ? (
-                            <Badge variant="outline" className="rounded-lg bg-slate-50 border-slate-200 text-slate-600 font-bold text-xs gap-1.5 px-3 h-8">
-                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: sub.category.color }} />
-                              {sub.category.name}
+                          <div className="flex flex-col items-end">
+                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-none rounded-full px-4 font-black text-[10px] tracking-widest uppercase">
+                                {stats.activeCount} {t('common.active', "Active")}
                             </Badge>
-                          ) : (
-                            <span className="text-slate-300 font-bold text-xs">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn("rounded-full px-3 py-1 font-black text-[10px] border tracking-wider uppercase flex w-fit items-center gap-1.5", getStatusColor(sub.status))}>
-                            <div className={cn("w-1 h-1 rounded-full", sub.status === 'ACTIVE' ? "bg-emerald-500" : "bg-slate-400")} />
-                            {t(`subscriptions.${sub.status.toLowerCase()}`)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className={cn(
-                            "flex flex-col px-3 py-1.5 rounded-xl border w-fit font-bold",
-                            isDueSoon && sub.status === 'ACTIVE' ? "bg-rose-50 border-rose-100 text-rose-600" : "bg-slate-50 border-slate-100 text-slate-600"
-                          )}>
-                             <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">{t('subscriptions.nextPayment')}</span>
-                             <span className="text-sm leading-none">{format(nextDate, 'MMM d, yyyy')}</span>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right pr-8">
-                           <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                              <ChevronRight className="h-5 w-5 text-slate-300" />
-                           </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </div>
+                    <div className="mt-6 flex flex-col">
+                      <p className="text-indigo-100/70 font-black text-[10px] uppercase tracking-widest mb-1">
+                        {t('subscriptions.totalPaidVsPlanned', "Paid / Planned in period")}
+                      </p>
+                      <CardTitle className="text-4xl font-black leading-tight flex items-baseline gap-2">
+                          <span className="flex items-baseline gap-0.5">
+                            <span className="text-xl opacity-60 font-bold">$</span>
+                            {formatAmount(stats.totalSpentUSD)}
+                          </span>
+                          <span className="text-2xl opacity-40 font-light mx-1">/</span>
+                          <span className="flex items-baseline gap-0.5 opacity-80 decoration-indigo-300 decoration-2">
+                            <span className="text-sm font-bold">$</span>
+                            {formatAmount(stats.totalPlannedUSD)}
+                          </span>
+                      </CardTitle>
+                    </div>
+                </CardHeader>
+                <div className="px-6 pb-6 relative z-10 flex justify-between items-center">
+                   <p className="text-indigo-100/60 font-medium text-xs">
+                     {selectedPeriodId === 'this-month' ? t('dashboard.thisMonth') : budgetPeriods.find(p => p.id === selectedPeriodId)?.name || t('common.allTime')}
+                   </p>
+                   {stats.totalPausedUSD > 0 && (
+                     <p className="text-indigo-100/40 font-black text-[9px] uppercase tracking-tighter bg-white/5 px-2 py-1 rounded-lg">
+                       {t('subscriptions.pausedPotential', "Paused potential")}: ${formatAmount(stats.totalPausedUSD)}
+                     </p>
+                   )}
+                </div>
+                {/* Background decoration */}
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-24 -mt-24 group-hover:scale-150 transition-transform duration-1000" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400/20 rounded-full blur-2xl -ml-16 -mb-16" />
             </Card>
 
-            {/* Quick Summary Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 <Card className="border-none shadow-xl rounded-[2rem] bg-gradient-to-br from-indigo-600 to-violet-700 text-white overflow-hidden group">
-                    <CardHeader className="relative z-10">
-                        <div className="flex justify-between items-start">
-                             <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                                <Calendar className="h-6 w-6" />
+            <Card className="border-none shadow-lg rounded-[2.5rem] bg-white border border-slate-100 flex flex-col justify-center p-8 gap-4 overflow-hidden relative group">
+               <div className="relative z-10">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Info className="h-3 w-3 text-indigo-500" />
+                    {t('common.status', "Subscription Status")}
+                  </p>
+                  <p className="text-slate-600 font-medium leading-relaxed">
+                    {viewTab === 'relevant' 
+                      ? t('subscriptions.periodFilterInfo', "Showing subscriptions due or paid in the selected period.")
+                      : t('subscriptions.allFilterInfo', "Showing all monitored subscription services.")}
+                  </p>
+               </div>
+               <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-slate-50 rounded-full group-hover:scale-110 transition-transform duration-500" />
+            </Card>
+        </div>
+
+        {/* Main Content Table Area */}
+        {subscriptions.length > 0 ? (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+            {filteredSubscriptions.length > 0 ? (
+              <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white ring-1 ring-slate-100">
+                <Table>
+                  <TableHeader className="bg-slate-50/50">
+                    <TableRow className="hover:bg-transparent border-slate-100">
+                      <TableHead className="w-[300px] font-black uppercase tracking-widest text-[10px] text-slate-400 pl-8">{t('subscriptions.name')}</TableHead>
+                      <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('subscriptions.amount')}</TableHead>
+                      <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('transactions.category', "Category")}</TableHead>
+                      <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('subscriptions.status')}</TableHead>
+                      <TableHead className="font-black uppercase tracking-widest text-[10px] text-slate-400">{t('subscriptions.nextPayment')}</TableHead>
+                      <TableHead className="w-[100px] text-right pr-8"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSubscriptions.map((sub) => {
+                      const nextDate = parseISO(sub.nextPaymentDate);
+                      const isDueSoon = sub.status === 'ACTIVE' && (nextDate.getTime() - new Date().getTime()) < (1000 * 60 * 60 * 24 * 3); // 3 days
+                      
+                      return (
+                        <TableRow 
+                          key={sub.id} 
+                          className="group cursor-pointer hover:bg-indigo-50/30 transition-all border-slate-50 h-20"
+                          onClick={() => openDetails(sub)}
+                        >
+                          <TableCell className="pl-8">
+                            <div className="flex items-center gap-4">
+                              <div className={cn(
+                                "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg transition-all shadow-sm ring-1 ring-slate-100 group-hover:scale-110",
+                                sub.status === 'ACTIVE' ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-400"
+                              )}>
+                                {sub.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-black text-slate-900 text-base">{sub.name}</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{wallets.find(w => w.id === sub.walletId)?.name}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-black text-slate-900 text-lg">
+                                {getCurrencySymbol(sub.currency)}{formatAmount(sub.amount)}
+                              </span>
+                              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                                 / {t(`subscriptions.${sub.frequency.toLowerCase()}`)}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {sub.categoryId ? (
+                              <Badge variant="outline" className="rounded-lg bg-slate-50 border-slate-200 text-slate-600 font-bold text-xs gap-1.5 px-3 h-8">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: categories.find(c => c.id === sub.categoryId)?.color }} />
+                                {categories.find(c => c.id === sub.categoryId)?.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-slate-300 font-bold text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cn("rounded-full px-3 py-1 font-black text-[10px] border tracking-wider uppercase flex w-fit items-center gap-1.5", getStatusColor(sub.status))}>
+                              <div className={cn("w-1 h-1 rounded-full", sub.status === 'ACTIVE' ? "bg-emerald-500" : "bg-slate-400")} />
+                              {t(`subscriptions.${sub.status.toLowerCase()}`)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className={cn(
+                              "flex flex-col px-3 py-1.5 rounded-xl border w-fit font-bold",
+                              isDueSoon && sub.status === 'ACTIVE' ? "bg-rose-50 border-rose-100 text-rose-600" : "bg-slate-50 border-slate-100 text-slate-600"
+                            )}>
+                               <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">{t('subscriptions.nextPayment')}</span>
+                               <span className="text-sm leading-none">{format(nextDate, 'MMM d, yyyy')}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right pr-8">
+                             <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ChevronRight className="h-5 w-5 text-slate-300" />
                              </div>
-                             <Badge className="bg-white/20 hover:bg-white/30 text-white border-none rounded-full px-4 font-black text-[10px] tracking-widest uppercase">
-                                {t('subscriptions.active')}
-                             </Badge>
-                        </div>
-                        <CardTitle className="text-3xl font-black mt-6 leading-tight">
-                            {subscriptions.filter(s => s.status === 'ACTIVE').length} {t('subscriptions.title')}
-                        </CardTitle>
-                        <CardDescription className="text-indigo-100 font-medium opacity-80">{t('subscriptions.upcomingDescription', "Manage your recurring payments effortlessly")}</CardDescription>
-                    </CardHeader>
-                    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
-                 </Card>
-            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+            ) : (
+              <Card className="border-dashed border-2 border-slate-200 bg-slate-50/50 rounded-[2.5rem] py-20 flex flex-col items-center justify-center text-center">
+                <Info className="h-10 w-10 text-slate-300 mb-4" />
+                <h3 className="text-xl font-bold text-slate-900 mb-1">{t('common.noData', "No relevant subscriptions")}</h3>
+                <p className="text-slate-500 max-w-xs">{t('subscriptions.noRelevantData', "There are no subscriptions due or paid in this period.")}</p>
+              </Card>
+            )}
           </div>
         ) : (
           <Card className="border-dashed border-4 border-slate-200 bg-slate-50/50 rounded-[3rem] py-32 flex flex-col items-center justify-center text-center">
@@ -642,6 +864,22 @@ export default function SubscriptionsPage() {
             )}
           </DialogContent>
         </Dialog>
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('common.areYouSure')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('subscriptions.confirmDelete')}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={onConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                {t('common.delete')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

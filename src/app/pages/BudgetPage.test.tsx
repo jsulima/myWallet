@@ -118,6 +118,10 @@ describe('BudgetPage Lifecycle Actions', () => {
 
     fireEvent.click(screen.getByText('Finish All'));
 
+    // Click confirm in AlertDialog
+    const confirmBtn = screen.getByText('Confirm');
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => {
       expect(mockApp.updateBudgetPlan).toHaveBeenCalledWith('bp-1', { status: 'FINISHED' });
     });
@@ -153,6 +157,11 @@ describe('BudgetPage Lifecycle Actions', () => {
     
     if (deleteBtn) {
       fireEvent.click(deleteBtn);
+      
+      // Click confirm in AlertDialog
+      const confirmBtn = screen.getByText('Delete');
+      fireEvent.click(confirmBtn);
+      
       expect(mockApp.deleteBudgetPlan).toHaveBeenCalledWith('bp-2');
     }
   });

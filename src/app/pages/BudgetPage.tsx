@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Progress } from '../components/ui/progress';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
@@ -30,6 +31,8 @@ export default function BudgetPage() {
   const [isEditPeriodOpen, setIsEditPeriodOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [editingPeriod, setEditingPeriod] = useState<any>(null);
+  const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
+  const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   
@@ -187,34 +190,42 @@ export default function BudgetPage() {
     }
   };
 
-  const handleFinishAll = async () => {
+  const handleFinishAll = () => {
+    const activeBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
+    const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
+    if (activeBudgets.length === 0 && !activePeriod) return;
+    setIsFinishDialogOpen(true);
+  };
+
+  const onConfirmFinish = async () => {
+    setIsFinishDialogOpen(false);
     const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
     const activeBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
 
-    if (!activePeriod) {
-        if (activeBudgets.length === 0) return;
-        if (!confirm(t('budget.confirmFinish'))) return;
-        setIsLoading(true);
-        try {
-          await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
-          toast.success(t('budget.successFinish'));
-        } catch (error: any) {
-          toast.error(error.message || t('budget.failFinish'));
-        } finally {
-          setIsLoading(false);
-        }
-        return;
-    }
-
-    if (!confirm(`${t('budget.confirmFinish')} (${activePeriod.name})`)) return;
     setIsLoading(true);
     try {
-      await updateBudgetPeriod(activePeriod.id, { status: 'FINISHED' });
+      if (activePeriod) {
+        await updateBudgetPeriod(activePeriod.id, { status: 'FINISHED', endDate: activePeriod.endDate });
+      } else {
+        await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
+      }
       toast.success(t('budget.successFinish'));
     } catch (error: any) {
       toast.error(error.message || t('budget.failFinish'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onConfirmDeleteBudget = async () => {
+    if (!budgetToDelete) return;
+    try {
+      await deleteBudgetPlan(budgetToDelete);
+      toast.success(t('budget.successDelete'));
+    } catch (error: any) {
+      toast.error(error.message || t('budget.failDelete'));
+    } finally {
+      setBudgetToDelete(null);
     }
   };
 
@@ -616,7 +627,7 @@ export default function BudgetPage() {
                                     size="sm" 
                                     variant="outline" 
                                     className="text-green-600 border-green-100"
-                                    onClick={() => updateBudgetPeriod(period.id, { status: 'ACTIVE' })}
+                                    onClick={() => updateBudgetPeriod(period.id, { status: 'ACTIVE', endDate: period.endDate })}
                                 >
                                     <Zap className="h-3 w-3 mr-1" />
                                     {t('budget.activateDrafts')}
@@ -685,7 +696,7 @@ export default function BudgetPage() {
                                                                 variant="ghost" 
                                                                 size="icon" 
                                                                 className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" 
-                                                                onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
+                                                                onClick={(e) => { e.stopPropagation(); setBudgetToDelete(bp.id); }}
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
@@ -863,6 +874,39 @@ export default function BudgetPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('budget.confirmFinishTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('budget.confirmFinishDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmFinish} className="bg-red-600 hover:bg-red-700">
+              {t('common.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!budgetToDelete} onOpenChange={(open) => !open && setBudgetToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('common.areYouSure', 'Are you sure?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('budget.deleteDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmDeleteBudget} className="bg-red-600 hover:bg-red-700">
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
