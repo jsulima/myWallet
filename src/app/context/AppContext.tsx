@@ -113,6 +113,12 @@ export interface CurrencyRate {
   rate: number;
 }
 
+export interface WalletSummary {
+  totalBalanceUSD: number;
+  currency: string;
+  walletCount: number;
+}
+
 interface AppContextType {
   user: User | null;
   loading: boolean;
@@ -194,6 +200,7 @@ interface AppContextType {
   deleteWallet: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
   rates: CurrencyRate[];
+  walletSummary: WalletSummary | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -210,10 +217,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [budgetPeriods, setBudgetPeriods] = useState<BudgetPeriod[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [rates, setRates] = useState<CurrencyRate[]>([]);
+  const [walletSummary, setWalletSummary] = useState<WalletSummary | null>(null);
 
   const fetchAllData = useCallback(async () => {
     try {
-      const [w, c, t, s, cr, b, bp, sub] = await Promise.all([
+      const [w, c, t, s, cr, b, bp, sub, summary, r] = await Promise.all([
         walletApi.getAll(),
         categoryApi.getAll(),
         transactionApi.getAll(),
@@ -222,6 +230,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         budgetApi.getAll(),
         budgetPeriodApi.getAll(),
         subscriptionApi.getAll(),
+        walletApi.getSummary(),
+        currencyApi.getRates(),
       ]);
       setWallets(w);
       setCategories(c);
@@ -231,7 +241,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBudgetPlans(b);
       setBudgetPeriods(bp);
       setSubscriptions(sub);
-      const r = await currencyApi.getRates();
+      setWalletSummary(summary);
       setRates(r);
     } catch (error) {
       console.error('Fetch All Data Error:', error);
@@ -584,6 +594,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteWallet,
         refreshData: fetchAllData,
         rates,
+        walletSummary,
       }}
     >
       {children}

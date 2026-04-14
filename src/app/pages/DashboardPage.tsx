@@ -38,8 +38,9 @@ import { formatAmount } from '../components/ui/utils';
 import EditWalletDialog from '../components/EditWalletDialog';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods, reorderWallets } = useApp();
+  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods, reorderWallets, walletSummary, fetchPeriodAnalytics } = useApp();
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
+  const [activePeriodAnalytics, setActivePeriodAnalytics] = useState<any>(null);
   const { t } = useTranslation();
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -109,23 +110,15 @@ export default function DashboardPage() {
     return d >= periodStart && d <= periodEnd;
   });
 
-  const periodIncomeByCurrency = periodTransactions
-    .filter(t => t.type === 'INCOME' && !t.transferId)
-    .reduce((acc, t) => {
-      const wallet = getWalletById(t.walletId);
-      const cur = wallet?.currency || 'USD';
-      acc[cur] = (acc[cur] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-  const periodExpensesByCurrency = periodTransactions
-    .filter(t => t.type === 'EXPENSE' && !t.transferId)
-    .reduce((acc, t) => {
-      const wallet = getWalletById(t.walletId);
-      const cur = wallet?.currency || 'USD';
-      acc[cur] = (acc[cur] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  useEffect(() => {
+    if (activePeriod) {
+      fetchPeriodAnalytics(activePeriod.id)
+        .then(setActivePeriodAnalytics)
+        .catch(console.error);
+    } else {
+      setActivePeriodAnalytics(null);
+    }
+  }, [activePeriod, fetchPeriodAnalytics]);
 
   // For charts, we still need normalized USD values to compare fairly
 
@@ -229,13 +222,25 @@ export default function DashboardPage() {
               <WalletIcon className="h-4 w-4 text-gray-600" />
             </CardHeader>
             <CardContent>
-              {Object.entries(balanceByCurrency).map(([cur, amount]) => (
-                <div key={cur} className="text-2xl font-bold">
-                  {getCurrencySymbol(cur)}{formatAmount(amount)}
+              <div className="flex flex-col gap-1">
+                <div className="text-2xl font-bold font-mono">
+                  ${formatAmount(walletSummary?.totalBalanceUSD || 0)}
                 </div>
-              ))}
+                {wallets.length > 0 && (
+                   <div className="flex items-center gap-1.5 flex-wrap">
+                      {Object.entries(balanceByCurrency).map(([cur, amount]) => (
+                        <span key={cur} className="text-[10px] text-gray-500 bg-gray-100 px-1 rounded">
+                          {getCurrencySymbol(cur)}{formatAmount(amount)}
+                        </span>
+                      ))}
+                   </div>
+                )}
+              </div>
               {Object.keys(balanceByCurrency).length === 0 && <div className="text-2xl font-bold">$0</div>}
-              <p className="text-xs text-gray-600 mt-1">{wallets.length} {t('dashboard.myWallets')}</p>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-gray-600">{wallets.length} {t('dashboard.myWallets')}</p>
+                <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1 rounded border border-indigo-100">USD Total</span>
+              </div>
             </CardContent>
           </Card>
 
@@ -247,13 +252,13 @@ export default function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              {Object.entries(periodIncomeByCurrency).map(([cur, amount]) => (
-                <div key={cur} className="text-2xl font-bold text-green-600">
-                  {getCurrencySymbol(cur)}{formatAmount(amount)}
-                </div>
-              ))}
-              {Object.keys(periodIncomeByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
-              <p className="text-xs text-gray-600 mt-1">{periodLabel}</p>
+              <div className="text-2xl font-bold text-green-600 font-mono">
+                ${formatAmount(activePeriodAnalytics?.totalIncome || 0)}
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-gray-600">{periodLabel}</p>
+                <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1 rounded border border-indigo-100 italic">Approx. USD</span>
+              </div>
             </CardContent>
           </Card>
 
@@ -265,13 +270,13 @@ export default function DashboardPage() {
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              {Object.entries(periodExpensesByCurrency).map(([cur, amount]) => (
-                <div key={cur} className="text-2xl font-bold text-red-600">
-                  {getCurrencySymbol(cur)}{formatAmount(amount)}
-                </div>
-              ))}
-              {Object.keys(periodExpensesByCurrency).length === 0 && <div className="text-2xl font-bold text-red-600">$0</div>}
-              <p className="text-xs text-gray-600 mt-1">{periodLabel}</p>
+              <div className="text-2xl font-bold text-red-600 font-mono">
+                ${formatAmount(activePeriodAnalytics?.totalSpent || 0)}
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-gray-600">{periodLabel}</p>
+                <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1 rounded border border-indigo-100 italic">Approx. USD</span>
+              </div>
             </CardContent>
           </Card>
 

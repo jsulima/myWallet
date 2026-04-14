@@ -47,7 +47,12 @@ export default function ArchivePage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">{t('archive.title')}</h1>
-          <p className="text-gray-600">{t('archive.subtitle')}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-gray-600">{t('archive.subtitle')}</p>
+            <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 font-medium">
+               Approx. USD Conversion
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
