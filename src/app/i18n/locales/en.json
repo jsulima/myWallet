@@ -288,7 +288,15 @@
     "failAdd": "Failed to create savings goal",
     "successMoney": "Money added to savings!",
     "failMoney": "Failed to add money",
-    "invalidAmount": "Please enter a valid amount"
+    "invalidAmount": "Please enter a valid amount",
+    "editGoal": "Edit Goal",
+    "editGoalDesc": "Update your savings goal details",
+    "deleteGoal": "Delete Goal",
+    "deleteGoalDesc": "This will permanently delete this savings goal.",
+    "successUpdate": "Savings goal updated successfully!",
+    "failUpdate": "Failed to update savings goal",
+    "successDelete": "Savings goal deleted successfully!",
+    "failDelete": "Failed to delete savings goal"
   },
   "subscriptions": {
     "title": "Subscription Services",

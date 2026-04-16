@@ -167,6 +167,7 @@ interface AppContextType {
   savingPlaces: SavingPlace[];
   addSavingPlace: (savingPlace: { name: string; targetAmount: number; currentAmount?: number; currency?: string; deadline?: string }) => Promise<void>;
   updateSavingPlace: (id: string, savingPlace: Partial<SavingPlace>) => Promise<void>;
+  deleteSavingPlace: (id: string) => Promise<void>;
   credits: Credit[];
   addCredit: (credit: Omit<Credit, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'paidAmount'>) => Promise<void>;
   payCredit: (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => Promise<void>;
@@ -433,6 +434,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavingPlaces(prev => prev.map(sp => sp.id === id ? updated : sp));
   };
 
+  const deleteSavingPlace = async (id: string) => {
+    await savingApi.delete(id);
+    setSavingPlaces(prev => prev.filter(sp => sp.id !== id));
+  };
+
   const addCredit = async (credit: Omit<Credit, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'paidAmount'>) => {
     const created = await creditApi.create(credit);
     setCredits(prev => [...prev, created]);
@@ -571,6 +577,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         savingPlaces,
         addSavingPlace,
         updateSavingPlace,
+        deleteSavingPlace,
         credits,
         addCredit,
         payCredit,
