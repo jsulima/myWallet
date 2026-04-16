@@ -49,6 +49,7 @@ export default function SubscriptionsPage() {
     currency: 'USD',
     frequency: 'MONTHLY',
     startDate: new Date().toISOString().split('T')[0],
+    nextPaymentDate: new Date().toISOString().split('T')[0],
     categoryId: '',
     walletId: '',
     note: '',
@@ -186,12 +187,14 @@ export default function SubscriptionsPage() {
   }, [viewTab, subscriptions, periodRange, stats.periodTransactions]);
 
   const resetForm = () => {
+    const today = new Date().toISOString().split('T')[0];
     setFormData({
       name: '',
       amount: '',
       currency: 'USD',
       frequency: 'MONTHLY',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: today,
+      nextPaymentDate: today,
       categoryId: '',
       walletId: wallets.length > 0 ? wallets[0].id : '',
       note: '',
@@ -207,6 +210,7 @@ export default function SubscriptionsPage() {
       currency: sub.currency,
       frequency: sub.frequency,
       startDate: sub.startDate.split('T')[0],
+      nextPaymentDate: sub.nextPaymentDate.split('T')[0],
       categoryId: sub.categoryId || '',
       walletId: sub.walletId,
       note: sub.note || '',
@@ -224,7 +228,7 @@ export default function SubscriptionsPage() {
     setIsLoading(true);
 
     try {
-      const payload = {
+      const payload: any = {
         name: formData.name,
         amount: parseFloat(formData.amount),
         currency: formData.currency,
@@ -236,6 +240,10 @@ export default function SubscriptionsPage() {
       };
 
       if (editingSub) {
+        // Include manually set nextPaymentDate on edit
+        if (formData.nextPaymentDate) {
+          payload.nextPaymentDate = new Date(formData.nextPaymentDate).toISOString();
+        }
         await updateSubscription(editingSub.id, payload);
         toast.success(t('subscriptions.successUpdate'));
       } else {
@@ -431,6 +439,29 @@ export default function SubscriptionsPage() {
                     />
                   </div>
                 </div>
+
+                {editingSub && (
+                  <div className="space-y-2 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <Label htmlFor="nextPaymentDate" className="text-sm font-bold text-indigo-700 ml-1">
+                        {t('subscriptions.nextPaymentDate', 'Next Payment Date')}
+                      </Label>
+                      <span className="text-xs text-indigo-500 font-medium">
+                        {t('subscriptions.manualOverride', 'Manual override')}
+                      </span>
+                    </div>
+                    <Input 
+                      id="nextPaymentDate" 
+                      type="date"
+                      value={formData.nextPaymentDate || ''} 
+                      onChange={(e) => setFormData({ ...formData, nextPaymentDate: e.target.value })} 
+                      className="h-12 rounded-xl bg-white border-indigo-200 font-medium focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-indigo-500 ml-1">
+                      {t('subscriptions.nextPaymentHint', 'Override the automatically calculated next due date.')}
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
