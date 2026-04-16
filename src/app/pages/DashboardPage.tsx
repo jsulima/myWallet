@@ -25,8 +25,8 @@ import {
   ResponsiveContainer, 
   Cell,
   ReferenceLine,
-  PieChart,
-  Pie
+  AreaChart,
+  Area
 } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -105,10 +105,7 @@ export default function DashboardPage() {
       ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
       : t('dashboard.thisMonth');
 
-  const periodTransactions = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d >= periodStart && d <= periodEnd;
-  });
+
 
   useEffect(() => {
     if (activePeriod) {
@@ -158,24 +155,7 @@ export default function DashboardPage() {
     .sort((a, b) => b.percentageRaw - a.percentageRaw) // Sort from most used by desc
     .slice(0, 8); // Top active budgets
 
-  // Prepare Actual Expenses Pie Chart Data (period-aware)
-  const expenseData = categories
-    .filter(c => c.type === 'EXPENSE')
-    .map(c => {
-      const amount = periodTransactions
-        .filter(t => t.type === 'EXPENSE' && t.categoryId === c.id && !t.transferId)
-        .reduce((sum, t) => {
-          const w = getWalletById(t.walletId);
-          return sum + convertToUSD(t.amount, w?.currency || 'USD');
-        }, 0);
-      return {
-        name: c.name,
-        value: amount,
-        fill: c.color || '#6b7280' // default gray if no color
-      };
-    })
-    .filter(d => d.value > 0)
-    .sort((a, b) => b.value - a.value);
+
 
   return (
     <Layout>
@@ -367,16 +347,16 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Actual Expenses Pie Chart */}
+          {/* Spending Dynamics Area Chart */}
           <Card>
             <CardHeader className="pb-0 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">{t('dashboard.expensesBreakdown')}</CardTitle>
+                <CardTitle className="text-lg">{t('dashboard.spendingDynamics')}</CardTitle>
               </div>
-              <BarChart3 className="h-4 w-4 text-gray-400 rotate-90" />
+              <TrendingUp className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent className="pt-4 h-[280px]">
-              {expenseData.length === 0 ? (
+              {(!activePeriodAnalytics?.dailySpending || activePeriodAnalytics.dailySpending.length === 0) ? (
                 <div className="h-full flex flex-col items-center justify-center text-center">
                   <TrendingDown className="h-8 w-8 text-gray-200 mb-2" />
                   <p className="text-sm text-gray-400">
@@ -388,39 +368,62 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={expenseData}
-                      cx="50%"
-                      cy="45%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {expenseData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
+                  <AreaChart data={activePeriodAnalytics.dailySpending} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="date" 
+                      type="category"
+                      fontSize={10} 
+                      tickFormatter={(val) => {
+                        if (typeof val === 'string' && val.length >= 10) {
+                          return val.split('-')[2];
+                        }
+                        return val;
+                      }}
+                      tick={{ fill: '#9ca3af' }}
+                    />
+                    <YAxis 
+                      fontSize={10} 
+                      tick={{ fill: '#9ca3af' }}
+                      domain={[0, (dataMax: number) => Math.max(dataMax, (activePeriodAnalytics?.totalLimit || 0) * 1.1)]}
+                    />
                     <Tooltip 
-                      content={({ active, payload }) => {
+                      labelFormatter={(label) => {
+                        try { return new Date(label).toLocaleDateString(); } catch (e) { return label; }
+                      }}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
-                          const data = payload[0].payload;
                           return (
-                            <div className="bg-white p-3 border rounded-lg shadow-lg flex items-center gap-3">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.fill }} />
-                              <div>
-                                <p className="font-semibold text-sm" style={{ color: data.fill }}>{data.name}</p>
-                                <p className="text-gray-900 font-bold">${formatAmount(data.value)}</p>
-                              </div>
+                            <div className="bg-white p-3 border rounded-lg shadow-lg">
+                              <p className="text-xs text-gray-500 mb-1">{new Date(label).toLocaleDateString()}</p>
+                              <p className="font-bold text-indigo-600">${formatAmount(payload[0].value as number)}</p>
+                              <p className="text-[10px] text-gray-400">{t('archive.totalSpent')}</p>
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                  </PieChart>
+                    <Area 
+                      type="linear" 
+                      dataKey="cumulative" 
+                      stroke="#6366f1" 
+                      fill="#6366f1"
+                      fillOpacity={0.3} 
+                      strokeWidth={2.5}
+                      name={t('archive.totalSpent')}
+                      isAnimationActive={false}
+                    />
+                    {activePeriodAnalytics?.totalLimit > 0 && (
+                      <ReferenceLine 
+                        y={activePeriodAnalytics.totalLimit} 
+                        stroke="#ef4444" 
+                        strokeDasharray="5 5" 
+                        label={{ value: t('archive.totalLimit'), position: 'top', fill: '#ef4444', fontSize: 10 }}
+                      />
+                    )}
+                  </AreaChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
