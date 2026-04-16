@@ -653,9 +653,13 @@ export default function SubscriptionsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredSubscriptions.map((sub) => {
-                      const nextDate = parseISO(sub.nextPaymentDate);
+                      const nextDate = new Date(sub.nextPaymentDate);
+                      // Normalize nextDate to start of day for accurate comparison
+                      nextDate.setHours(0, 0, 0, 0);
                       const isDueSoon = sub.status === 'ACTIVE' && (nextDate.getTime() - new Date().getTime()) < (1000 * 60 * 60 * 24 * 3); // 3 days
                       
+                      const isPaidForPeriod = stats.paidSubIds.has(sub.id) || (!stats.isAllTime && nextDate > periodRange.end);
+
                       return (
                         <TableRow 
                           key={sub.id} 
@@ -705,11 +709,11 @@ export default function SubscriptionsPage() {
                               {!stats.isAllTime && (
                                 <Badge variant="outline" className={cn(
                                   "rounded-full px-2 py-0.5 font-black text-[9px] border tracking-tighter uppercase flex w-fit items-center gap-1",
-                                  stats.paidSubIds.has(sub.id) 
+                                  isPaidForPeriod 
                                     ? "bg-indigo-50 text-indigo-600 border-indigo-100" 
                                     : "bg-slate-50 text-slate-400 border-slate-100"
                                 )}>
-                                  {stats.paidSubIds.has(sub.id) 
+                                  {isPaidForPeriod 
                                     ? <><RefreshCcw className="h-2.5 w-2.5" /> {t('common.paid', "Paid")}</>
                                     : <><Calendar className="h-2.5 w-2.5" /> {t('common.pending', "Pending")}</>}
                                 </Badge>
@@ -719,12 +723,12 @@ export default function SubscriptionsPage() {
                           <TableCell>
                             <div className={cn(
                               "flex flex-col px-3 py-1.5 rounded-xl border w-fit font-bold",
-                              isDueSoon && sub.status === 'ACTIVE' && (stats.isAllTime || !stats.paidSubIds.has(sub.id)) ? "bg-rose-50 border-rose-100 text-rose-600" : 
-                              !stats.isAllTime && stats.paidSubIds.has(sub.id) ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                              isDueSoon && sub.status === 'ACTIVE' && (stats.isAllTime || !isPaidForPeriod) ? "bg-rose-50 border-rose-100 text-rose-600" : 
+                              !stats.isAllTime && isPaidForPeriod ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
                               "bg-slate-50 border-slate-100 text-slate-600"
                             )}>
                                <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">
-                                 {!stats.isAllTime && stats.paidSubIds.has(sub.id) ? t('subscriptions.nextPayment') : t('subscriptions.dueOn', "Due Date")}
+                                 {!stats.isAllTime && isPaidForPeriod ? t('subscriptions.nextPayment') : t('subscriptions.dueOn', "Due Date")}
                                </span>
                                <span className="text-sm leading-none">{format(nextDate, 'MMM d, yyyy')}</span>
                             </div>
