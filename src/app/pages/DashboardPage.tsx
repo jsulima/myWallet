@@ -13,7 +13,11 @@ import {
   BarChart3,
   ChevronUp,
   ChevronDown,
-  Edit2
+  Edit2,
+  Banknote,
+  Euro,
+  CircleDollarSign,
+  Coins
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -58,6 +62,7 @@ export default function DashboardPage() {
   const getCurrencySymbol = (cur: string) => {
     if (cur === 'USD') return '$';
     if (cur === 'UAH') return '₴';
+    if (cur === 'EUR') return '€';
     return cur;
   };
 
@@ -68,6 +73,7 @@ export default function DashboardPage() {
     
     // Fallback if rates not loaded yet or not found
     if (currency === 'UAH') return amount / 40;
+    if (currency === 'EUR') return amount * 1.08;
     return amount;
   };
 
@@ -498,9 +504,23 @@ export default function DashboardPage() {
                         to={`/transactions?walletId=${wallet.id}`}
                         className="flex-1 flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                       >
-                        <div>
-                          <p className="font-medium text-sm md:text-base">{wallet.name}</p>
-                          <p className="text-xs text-gray-600">{wallet.currency}</p>
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${wallet.type === 'CARD' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                            {wallet.type === 'CARD' ? (
+                              <CreditCard className="h-4 w-4" />
+                            ) : (
+                              <Banknote className="h-4 w-4" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm md:text-base">{wallet.name}</p>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              {wallet.currency === 'USD' && <CircleDollarSign className="h-3 w-3" />}
+                              {wallet.currency === 'EUR' && <Euro className="h-3 w-3" />}
+                              {wallet.currency === 'UAH' && <Coins className="h-3 w-3" />}
+                              <span>{wallet.currency}</span>
+                            </div>
+                          </div>
                         </div>
                         <p className="font-bold">
                           {getCurrencySymbol(wallet.currency)}{formatAmount(wallet.balance)}

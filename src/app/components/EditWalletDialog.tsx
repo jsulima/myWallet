@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet as WalletIcon, Trash2 } from 'lucide-react';
+import { Wallet as WalletIcon, Trash2, Banknote, CreditCard } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -41,6 +41,7 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
   const [formData, setFormData] = useState({
     name: wallet?.name || '',
     currency: wallet?.currency || 'USD',
+    type: (wallet?.type || 'CASH') as 'CASH' | 'CARD',
     balance: wallet?.balance?.toString() || '0',
   });
 
@@ -50,6 +51,7 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
       setFormData({
         name: wallet.name,
         currency: wallet.currency,
+        type: wallet.type,
         balance: wallet.balance.toString(),
       });
     }
@@ -64,6 +66,7 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
       await updateWallet(wallet.id, {
         name: formData.name,
         currency: formData.currency,
+        type: formData.type,
         balance: parseFloat(formData.balance) || 0,
       });
 
@@ -131,9 +134,40 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
+                  <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
                   <SelectItem value="UAH">UAH - Ukrainian Hryvnia (₴)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Wallet Type</Label>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, type: 'CASH' })}
+                  className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-all ${
+                    formData.type === 'CASH' 
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
+                      : 'border-gray-200 hover:border-gray-300 text-gray-500'
+                  }`}
+                >
+                  <Banknote className="h-5 w-5 mb-1" />
+                  <span className="text-xs font-medium">Cash</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, type: 'CARD' })}
+                  className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-all ${
+                    formData.type === 'CARD' 
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
+                      : 'border-gray-200 hover:border-gray-300 text-gray-500'
+                  }`}
+                >
+                  <CreditCard className="h-5 w-5 mb-1" />
+                  <span className="text-xs font-medium">Card</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">

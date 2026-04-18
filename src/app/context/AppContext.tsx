@@ -20,6 +20,7 @@ export interface Wallet {
   currency: string;
   balance: number;
   order: number;
+  type: 'CASH' | 'CARD';
 }
 
 export interface Category {

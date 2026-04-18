@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Wallet as WalletIcon } from 'lucide-react';
+import { Wallet as WalletIcon, Banknote, CreditCard } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -15,6 +15,7 @@ export default function AddWalletPage() {
   const [formData, setFormData] = useState({
     name: '',
     currency: 'USD',
+    type: 'CASH' as 'CASH' | 'CARD',
     balance: '',
   });
 
@@ -26,6 +27,7 @@ export default function AddWalletPage() {
       await addWallet({
         name: formData.name,
         currency: formData.currency,
+        type: formData.type,
         balance: parseFloat(formData.balance) || 0,
         order: 0,
       });
@@ -77,9 +79,40 @@ export default function AddWalletPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
+                <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
                 <SelectItem value="UAH">UAH - Ukrainian Hryvnia (₴)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label>Wallet Type</Label>
+            <div className="grid grid-cols-2 gap-4 mt-2">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type: 'CASH' })}
+                className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${
+                  formData.type === 'CASH' 
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
+                    : 'border-gray-200 hover:border-gray-300 text-gray-500'
+                }`}
+              >
+                <Banknote className="h-6 w-6 mb-2" />
+                <span className="text-sm font-medium">Cash</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type: 'CARD' })}
+                className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${
+                  formData.type === 'CARD' 
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
+                    : 'border-gray-200 hover:border-gray-300 text-gray-500'
+                }`}
+              >
+                <CreditCard className="h-6 w-6 mb-2" />
+                <span className="text-sm font-medium">Card</span>
+              </button>
+            </div>
           </div>
 
           <div>
