@@ -67,7 +67,8 @@ export interface Credit {
   monthlyPayment: number;
   currency: string;
   dueDate: string;
-  status?: 'ACTIVE' | 'CLOSED';
+  status: 'ACTIVE' | 'CLOSED';
+  commission: number;
 }
 
 export interface BudgetPlan {

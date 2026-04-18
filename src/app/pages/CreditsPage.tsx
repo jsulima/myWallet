@@ -90,6 +90,8 @@ export default function CreditsPage() {
         monthlyPayment: parseFloat(formData.monthlyPayment),
         currency: formData.currency,
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : '',
+        status: 'ACTIVE',
+        commission: 0,
       });
 
       toast.success(t('credits.successAdd'));
@@ -175,7 +177,15 @@ export default function CreditsPage() {
   const confirmCloseCredit = async () => {
     if (!creditToClose) return;
     try {
-      await updateCredit(creditToClose, { status: 'CLOSED' });
+      const credit = credits.find(c => c.id === creditToClose);
+      if (credit) {
+        const delta = Math.max(0, credit.paidAmount - credit.totalAmount);
+        await updateCredit(creditToClose, { 
+          status: 'CLOSED', 
+          commission: delta,
+          remainingAmount: 0 
+        });
+      }
       toast.success(t('common.savedSuccessfully'));
       setCreditToClose(null);
     } catch (error: any) {
@@ -202,7 +212,7 @@ export default function CreditsPage() {
     return activeCredits.reduce((acc, credit) => {
       const cur = credit.currency || 'USD';
       if (!acc[cur]) acc[cur] = 0;
-      acc[cur] += (credit.remainingAmount ?? 0);
+      acc[cur] += Math.max(0, (credit.remainingAmount ?? 0));
       return acc;
     }, {} as Record<string, number>);
   };
@@ -340,7 +350,7 @@ export default function CreditsPage() {
             const paidPercentage = ((credit.totalAmount - (credit.remainingAmount ?? 0)) / credit.totalAmount) * 100;
             const isOverdue = credit.dueDate ? new Date(credit.dueDate) < new Date() : false;
             const isClosed = credit.status === 'CLOSED';
-            const interestAmount = Math.max(0, credit.paidAmount - credit.totalAmount);
+            const interestAmount = isClosed ? (credit.commission || 0) : Math.max(0, credit.paidAmount - credit.totalAmount);
 
             return (
               <Card key={credit.id} className={`${isOverdue && !isClosed ? 'border-red-300' : ''} ${isClosed ? 'bg-gray-50/50' : ''}`}>
@@ -423,10 +433,10 @@ export default function CreditsPage() {
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">{t(isClosed ? 'credits.amountPaid' : 'credits.remaining')}</p>
-                        <p className={`text-lg font-bold ${isClosed ? 'text-gray-900' : 'text-red-600'}`}>
+                        <p className="text-sm text-gray-600">{t(isClosed || (credit.remainingAmount ?? 0) <= 0 ? 'credits.amountPaid' : 'credits.remaining')}</p>
+                        <p className={`text-lg font-bold ${isClosed || (credit.remainingAmount ?? 0) <= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                           {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}
-                          {formatAmount(isClosed ? credit.paidAmount : (credit.remainingAmount ?? 0))}
+                          {formatAmount(isClosed || (credit.remainingAmount ?? 0) <= 0 ? credit.paidAmount : (credit.remainingAmount ?? 0))}
                         </p>
                       </div>
                       <div className="text-right">
@@ -437,8 +447,8 @@ export default function CreditsPage() {
                       </div>
                     </div>
 
-                    {isClosed && interestAmount > 0 && (
-                      <div className="p-2 rounded-lg bg-blue-50/50 border border-blue-100 text-[11px] flex justify-between items-center">
+                    {(isClosed || (credit.remainingAmount ?? 0) <= 0) && interestAmount > 0 && (
+                      <div className="p-2 rounded-lg bg-blue-50/50 border border-blue-100 text-[11px] flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-500">
                         <span className="text-blue-700 font-bold uppercase tracking-tight">{t('credits.totalInterestPaid')}</span>
                         <span className="text-blue-800 font-black">
                           {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(interestAmount)}
@@ -447,7 +457,7 @@ export default function CreditsPage() {
                     )}
 
                     <div className="pt-3 border-t border-gray-200">
-                      {!isClosed && (
+                      {!isClosed && (credit.remainingAmount ?? 0) > 0 && (
                         <div className="flex items-center justify-between mb-3">
                           <div>
                             <p className="text-sm text-gray-600">{t('credits.monthlyPayment')}</p>
@@ -465,8 +475,9 @@ export default function CreditsPage() {
                           )}
                         </div>
                       )}
+                    </div>
 
-                      {!isClosed && (
+                    {!isClosed && (
                         <div className="flex items-center justify-between bg-blue-50/50 p-2 rounded text-sm mb-4">
                           <span className="text-gray-600">{t('credits.estPayoff')}</span>
                           <span className="font-medium text-blue-700">
@@ -501,7 +512,6 @@ export default function CreditsPage() {
                         >
                           <History className="h-5 w-5" />
                         </Button>
-                      </div>
                     </div>
                   </div>
                 </CardContent>
