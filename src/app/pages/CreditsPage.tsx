@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, CreditCard, AlertCircle, History, Trash2 } from 'lucide-react';
+import { Plus, CreditCard, AlertCircle, History, Trash2, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -12,6 +12,7 @@ import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatAmount } from '../components/ui/utils';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { transactionApi } from '../services/api';
 import {
   AlertDialog,
@@ -26,14 +27,17 @@ import {
 
 export default function CreditsPage() {
   const { t } = useTranslation();
-  const { credits, addCredit, payCredit, deleteCredit, wallets, categories, rates, deleteTransaction } = useApp();
+  const { credits, addCredit, payCredit, updateCredit, deleteCredit, wallets, categories, rates, deleteTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [viewTab, setViewTab] = useState('active');
   const [payingCreditId, setPayingCreditId] = useState<string | null>(null);
   const [historyCreditId, setHistoryCreditId] = useState<string | null>(null);
   const [historyTransactions, setHistoryTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [creditToDelete, setCreditToDelete] = useState<string | null>(null);
+  const [creditToClose, setCreditToClose] = useState<string | null>(null);
+  const [creditToRestore, setCreditToRestore] = useState<string | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
@@ -168,8 +172,34 @@ export default function CreditsPage() {
     }
   };
 
+  const confirmCloseCredit = async () => {
+    if (!creditToClose) return;
+    try {
+      await updateCredit(creditToClose, { status: 'CLOSED' });
+      toast.success(t('common.savedSuccessfully'));
+      setCreditToClose(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to close credit');
+    }
+  };
+
+  const confirmRestoreCredit = async () => {
+    if (!creditToRestore) return;
+    try {
+      await updateCredit(creditToRestore, { status: 'ACTIVE' });
+      toast.success(t('common.savedSuccessfully'));
+      setCreditToRestore(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to restore credit');
+    }
+  };
+
+  const activeCredits = credits.filter(c => (c.status || 'ACTIVE') === 'ACTIVE');
+  const archivedCredits = credits.filter(c => c.status === 'CLOSED');
+  const displayedCredits = viewTab === 'active' ? activeCredits : archivedCredits;
+
   const getDebtByCurrency = () => {
-    return credits.reduce((acc, credit) => {
+    return activeCredits.reduce((acc, credit) => {
       const cur = credit.currency || 'USD';
       if (!acc[cur]) acc[cur] = 0;
       acc[cur] += (credit.remainingAmount ?? 0);
@@ -178,7 +208,7 @@ export default function CreditsPage() {
   };
 
   const getMonthlyByCurrency = () => {
-    return credits.reduce((acc, credit) => {
+    return activeCredits.reduce((acc, credit) => {
       const cur = credit.currency || 'USD';
       if (!acc[cur]) acc[cur] = 0;
       acc[cur] += (credit.monthlyPayment ?? 0);
@@ -193,6 +223,12 @@ export default function CreditsPage() {
           <h1 className="text-3xl font-bold">{t('credits.title')}</h1>
           <p className="text-gray-600">{t('credits.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
+            <Tabs value={viewTab} onValueChange={setViewTab} className="mr-auto">
+              <TabsList>
+                <TabsTrigger value="active">{t('credits.active')}</TabsTrigger>
+                <TabsTrigger value="archived">{t('credits.archived')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -265,7 +301,7 @@ export default function CreditsPage() {
         </div>
       </div>
 
-        {credits.length > 0 && (
+        {activeCredits.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -278,7 +314,7 @@ export default function CreditsPage() {
                     {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(amount)}
                   </div>
                 ))}
-                <p className="text-xs text-gray-600 mt-1">{t('credits.activeCredits', { count: credits.length })}</p>
+                <p className="text-xs text-gray-600 mt-1">{t('credits.activeCredits', { count: activeCredits.length })}</p>
               </CardContent>
             </Card>
 
@@ -300,44 +336,65 @@ export default function CreditsPage() {
         )}
 
         <div className="grid gap-6 md:grid-cols-2">
-          {credits.map((credit) => {
+          {displayedCredits.map((credit) => {
             const paidPercentage = ((credit.totalAmount - (credit.remainingAmount ?? 0)) / credit.totalAmount) * 100;
             const isOverdue = credit.dueDate ? new Date(credit.dueDate) < new Date() : false;
-            
+            const isClosed = credit.status === 'CLOSED';
+            const interestAmount = Math.max(0, credit.paidAmount - credit.totalAmount);
+
             return (
-              <Card key={credit.id} className={isOverdue ? 'border-red-300' : ''}>
+              <Card key={credit.id} className={`${isOverdue && !isClosed ? 'border-red-300' : ''} ${isClosed ? 'bg-gray-50/50' : ''}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-orange-100">
-                        <CreditCard className="h-6 w-6 text-orange-600" />
+                      <div className={`p-2 rounded-full ${isClosed ? 'bg-gray-200' : 'bg-orange-100'}`}>
+                        <CreditCard className={`h-6 w-6 ${isClosed ? 'text-gray-500' : 'text-orange-600'}`} />
                       </div>
                       <div>
-                        <CardTitle>{credit.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <CardTitle>{credit.name}</CardTitle>
+                          {isClosed && (
+                            <span className="text-[10px] font-black bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                              {t('credits.closedBadge')}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-600 mt-1">
                           {t('credits.interestRateLabel', { rate: credit.interestRate })}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {isOverdue && (
+                      {isOverdue && !isClosed && (
                         <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded">
                           {t('credits.overdue')}
                         </span>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setCreditToDelete(credit.id);
-                        }}
-                        title="Delete Credit"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isClosed ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => setCreditToRestore(credit.id)}
+                          title={t('credits.restoreCredit') || ''}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCreditToDelete(credit.id);
+                          }}
+                          title="Delete Credit"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -345,17 +402,31 @@ export default function CreditsPage() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">{t('credits.paidOff')}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">{t('credits.paidOff')}</span>
+                          {!isClosed && paidPercentage >= 90 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[10px] font-black bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-full flex items-center gap-1 border border-emerald-100"
+                              onClick={() => setCreditToClose(credit.id)}
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              {t('credits.closeCredit')}
+                            </Button>
+                          )}
+                        </div>
                         <span className="text-sm font-semibold">{paidPercentage.toFixed(0)}%</span>
                       </div>
-                      <Progress value={paidPercentage} className="h-2" />
+                      <Progress value={paidPercentage} className={`h-2 ${isClosed ? 'opacity-50' : ''}`} />
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">{t('credits.remaining')}</p>
-                        <p className="text-lg font-bold text-red-600">
-                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(credit.remainingAmount ?? 0)}
+                        <p className="text-sm text-gray-600">{t(isClosed ? 'credits.amountPaid' : 'credits.remaining')}</p>
+                        <p className={`text-lg font-bold ${isClosed ? 'text-gray-900' : 'text-red-600'}`}>
+                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}
+                          {formatAmount(isClosed ? credit.paidAmount : (credit.remainingAmount ?? 0))}
                         </p>
                       </div>
                       <div className="text-right">
@@ -366,43 +437,62 @@ export default function CreditsPage() {
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="text-sm text-gray-600">{t('credits.monthlyPayment')}</p>
-                          <p className="font-semibold">
-                            {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(credit.monthlyPayment ?? 0)}
-                          </p>
-                        </div>
-                        {credit.dueDate && (
-                          <div className="text-right">
-                            <p className="text-sm text-gray-600">{t('credits.nextDue')}</p>
-                            <p className={`font-semibold ${isOverdue ? 'text-red-600' : ''}`}>
-                              {new Date(credit.dueDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between bg-blue-50/50 p-2 rounded text-sm mb-4">
-                        <span className="text-gray-600">{t('credits.estPayoff')}</span>
-                        <span className="font-medium text-blue-700">
-                          {credit.monthlyPayment > 0 && credit.remainingAmount > 0 
-                            ? t('credits.months', { count: Math.ceil(credit.remainingAmount / credit.monthlyPayment) })
-                            : credit.remainingAmount <= 0 ? t('credits.paid') : t('credits.na')
-                          }
+                    {isClosed && interestAmount > 0 && (
+                      <div className="p-2 rounded-lg bg-blue-50/50 border border-blue-100 text-[11px] flex justify-between items-center">
+                        <span className="text-blue-700 font-bold uppercase tracking-tight">{t('credits.totalInterestPaid')}</span>
+                        <span className="text-blue-800 font-black">
+                          {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(interestAmount)}
                         </span>
                       </div>
+                    )}
+
+                    <div className="pt-3 border-t border-gray-200">
+                      {!isClosed && (
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="text-sm text-gray-600">{t('credits.monthlyPayment')}</p>
+                            <p className="font-semibold">
+                              {credit.currency === 'USD' ? '$' : credit.currency === 'UAH' ? '₴' : credit.currency}{formatAmount(credit.monthlyPayment ?? 0)}
+                            </p>
+                          </div>
+                          {credit.dueDate && (
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600">{t('credits.nextDue')}</p>
+                              <p className={`font-semibold ${isOverdue ? 'text-red-600' : ''}`}>
+                                {new Date(credit.dueDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {!isClosed && (
+                        <div className="flex items-center justify-between bg-blue-50/50 p-2 rounded text-sm mb-4">
+                          <span className="text-gray-600">{t('credits.estPayoff')}</span>
+                          <span className="font-medium text-blue-700">
+                            {credit.monthlyPayment > 0 && credit.remainingAmount > 0 
+                              ? t('credits.months', { count: Math.ceil(credit.remainingAmount / credit.monthlyPayment) })
+                              : credit.remainingAmount <= 0 ? t('credits.paid') : t('credits.na')
+                            }
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          className="flex-1 font-medium shadow-sm hover:bg-gray-50 bg-white" 
-                          onClick={() => openPayDialog(credit)}
-                          disabled={credit.remainingAmount <= 0}
-                        >
-                          {t('credits.makePayment')}
-                        </Button>
+                        {!isClosed ? (
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 font-medium shadow-sm hover:bg-gray-50 bg-white" 
+                            onClick={() => openPayDialog(credit)}
+                            disabled={credit.remainingAmount <= 0}
+                          >
+                            {t('credits.makePayment')}
+                          </Button>
+                        ) : (
+                          <div className="flex-1 text-sm text-gray-500 font-medium italic flex items-center justify-center border border-dashed border-gray-300 rounded-md bg-gray-50">
+                            {t('credits.closedBadge')}
+                          </div>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon"
@@ -575,15 +665,48 @@ export default function CreditsPage() {
         <AlertDialog open={!!creditToDelete} onOpenChange={(open) => !open && setCreditToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogTitle>{t('common.areYouSure')}</AlertDialogTitle>
               <AlertDialogDescription>
+                {t('credits.deleteDesc', { name: credits.find(c => c.id === creditToDelete)?.name })}
                 This action will delete the credit <b>"{credits.find(c => c.id === creditToDelete)?.name}"</b>. 
                 Past payment transactions will be kept as regular unlinked wallet expenses to balance your accounts.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteCredit} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteCredit} className="bg-red-600 hover:bg-red-700">{t('common.delete')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Credit Closing Alert Dialog */}
+        <AlertDialog open={!!creditToClose} onOpenChange={(open) => !open && setCreditToClose(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('credits.closeCreditTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('credits.closeCreditDesc')}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmCloseCredit} className="bg-indigo-600 hover:bg-indigo-700">{t('common.confirm')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Credit Restore Alert Dialog */}
+        <AlertDialog open={!!creditToRestore} onOpenChange={(open) => !open && setCreditToRestore(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('credits.restoreCredit')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                Do you want to restore <b>"{credits.find(c => c.id === creditToRestore)?.name}"</b> and move it back to active credits?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmRestoreCredit} className="bg-indigo-600 hover:bg-indigo-700">{t('common.confirm')}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

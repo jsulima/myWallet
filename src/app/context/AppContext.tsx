@@ -67,6 +67,7 @@ export interface Credit {
   monthlyPayment: number;
   currency: string;
   dueDate: string;
+  status?: 'ACTIVE' | 'CLOSED';
 }
 
 export interface BudgetPlan {
@@ -199,6 +200,7 @@ interface AppContextType {
   paySubscription: (id: string) => Promise<void>;
   reorderWallets: (walletIds: string[]) => Promise<void>;
   deleteWallet: (id: string) => Promise<void>;
+  updateCredit: (id: string, credit: Partial<Credit>) => Promise<void>;
   refreshData: () => Promise<void>;
   rates: CurrencyRate[];
   walletSummary: WalletSummary | null;
@@ -444,6 +446,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCredits(prev => [...prev, created]);
   };
 
+  const updateCredit = async (id: string, credit: Partial<Credit>) => {
+    const updated = await creditApi.update(id, credit);
+    setCredits(prev => prev.map(c => c.id === id ? updated : c));
+  };
+
   const payCredit = async (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => {
     await creditApi.pay(id, data);
     // Refresh all data since this affects wallets, credits, and transactions
@@ -599,6 +606,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         paySubscription,
         reorderWallets,
         deleteWallet,
+        updateCredit,
         refreshData: fetchAllData,
         rates,
         walletSummary,

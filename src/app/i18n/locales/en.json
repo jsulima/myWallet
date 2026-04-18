@@ -259,7 +259,16 @@
     "walletDeduction": "Wallet Deduction",
     "exchangeRate": "Exchange Rate",
     "historyTitle": "Payment History",
-    "noHistory": "No payments recorded for this credit."
+    "noHistory": "No payments recorded for this credit.",
+    "active": "Active",
+    "archived": "Archived",
+    "closeCredit": "Close Credit",
+    "closeCreditTitle": "Close this credit?",
+    "closeCreditDesc": "Are you sure you want to close this credit? It will be moved to the archive. You can still view its history, but you won't be able to make new payments.",
+    "restoreCredit": "Restore Credit",
+    "closedBadge": "Closed",
+    "totalInterestPaid": "Total Interest/Fees Paid",
+    "amountPaid": "Total Paid"
   },
   "savings": {
     "title": "Savings Goals",
