@@ -505,7 +505,13 @@ export default function DashboardPage() {
                         className="flex-1 flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-full ${wallet.type === 'CARD' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                          <div 
+                            className="p-2 rounded-full"
+                            style={{ 
+                              backgroundColor: `${wallet.color || '#6366f1'}15`, 
+                              color: wallet.color || '#6366f1' 
+                            }}
+                          >
                             {wallet.type === 'CARD' ? (
                               <CreditCard className="h-4 w-4" />
                             ) : (

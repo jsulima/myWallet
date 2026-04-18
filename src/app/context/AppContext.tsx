@@ -21,6 +21,7 @@ export interface Wallet {
   balance: number;
   order: number;
   type: 'CASH' | 'CARD';
+  color: string;
 }
 
 export interface Category {

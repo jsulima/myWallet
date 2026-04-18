@@ -76,7 +76,7 @@ export const authApi = {
 export const walletApi = {
   getSummary: () => request<{ totalBalanceUSD: number; currency: string; walletCount: number }>('/wallets/summary'),
   getAll: () => request<any[]>('/wallets'),
-  create: (data: { name: string; balance?: number; currency?: string }) =>
+  create: (data: { name: string; balance?: number; currency?: string; type?: string; color?: string }) =>
     request<any>('/wallets', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
     request<any>(`/wallets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

@@ -8,6 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
 
+const COLORS = [
+  { name: 'Indigo', value: '#6366f1' },
+  { name: 'Emerald', value: '#10b981' },
+  { name: 'Rose', value: '#f43f5e' },
+  { name: 'Amber', value: '#f59e0b' },
+  { name: 'Sky', value: '#0ea5e9' },
+  { name: 'Violet', value: '#8b5cf6' },
+  { name: 'Slate', value: '#64748b' },
+];
+
 export default function AddWalletPage() {
   const navigate = useNavigate();
   const { addWallet } = useApp();
@@ -17,6 +27,7 @@ export default function AddWalletPage() {
     currency: 'USD',
     type: 'CASH' as 'CASH' | 'CARD',
     balance: '',
+    color: COLORS[0].value,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,6 +40,7 @@ export default function AddWalletPage() {
         currency: formData.currency,
         type: formData.type,
         balance: parseFloat(formData.balance) || 0,
+        color: formData.color,
         order: 0,
       });
 
@@ -112,6 +124,26 @@ export default function AddWalletPage() {
                 <CreditCard className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">Card</span>
               </button>
+            </div>
+          </div>
+
+          <div>
+            <Label>Wallet Color</Label>
+            <div className="flex flex-wrap gap-3 mt-2">
+              {COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, color: color.value })}
+                  className={`w-8 h-8 rounded-full transition-all border-2 ${
+                    formData.color === color.value 
+                      ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110' 
+                      : 'border-transparent hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: color.value }}
+                  title={color.name}
+                />
+              ))}
             </div>
           </div>
 

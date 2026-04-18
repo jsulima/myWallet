@@ -32,6 +32,16 @@ interface EditWalletDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const COLORS = [
+  { name: 'Indigo', value: '#6366f1' },
+  { name: 'Emerald', value: '#10b981' },
+  { name: 'Rose', value: '#f43f5e' },
+  { name: 'Amber', value: '#f59e0b' },
+  { name: 'Sky', value: '#0ea5e9' },
+  { name: 'Violet', value: '#8b5cf6' },
+  { name: 'Slate', value: '#64748b' },
+];
+
 export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWalletDialogProps) {
   const { updateWallet, deleteWallet } = useApp();
   const { t } = useTranslation();
@@ -43,6 +53,7 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
     currency: wallet?.currency || 'USD',
     type: (wallet?.type || 'CASH') as 'CASH' | 'CARD',
     balance: wallet?.balance?.toString() || '0',
+    color: wallet?.color || COLORS[0].value,
   });
 
   // Update form data when wallet changes or dialog opens
@@ -53,6 +64,7 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
         currency: wallet.currency,
         type: wallet.type,
         balance: wallet.balance.toString(),
+        color: wallet.color || COLORS[0].value,
       });
     }
   }, [wallet, open]);
@@ -68,6 +80,7 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
         currency: formData.currency,
         type: formData.type,
         balance: parseFloat(formData.balance) || 0,
+        color: formData.color,
       });
 
       toast.success(t('common.savedSuccessfully') || 'Wallet updated successfully!');
@@ -167,6 +180,26 @@ export default function EditWalletDialog({ wallet, open, onOpenChange }: EditWal
                   <CreditCard className="h-5 w-5 mb-1" />
                   <span className="text-xs font-medium">Card</span>
                 </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Wallet Color</Label>
+              <div className="flex flex-wrap gap-3 mt-2">
+                {COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, color: color.value })}
+                    className={`w-7 h-7 rounded-full transition-all border-2 ${
+                      formData.color === color.value 
+                        ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110' 
+                        : 'border-transparent hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
               </div>
             </div>
 
