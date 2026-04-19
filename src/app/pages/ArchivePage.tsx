@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, BarChart3, ArrowUpRight, ArrowDownRight, History, Zap, ArrowRight, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, BarChart3, ArrowUpRight, ArrowDownRight, History, Zap, ArrowRight, TrendingUp, TrendingDown, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
