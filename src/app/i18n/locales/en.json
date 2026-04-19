@@ -184,6 +184,8 @@
     "recUnderLimit": "Excellent control! You stayed under budget in most categories.",
     "recNextSteps": "Next Steps",
     "recAdjust": "Increase {{category}} limit slightly to match your actual needs.",
+    "dailySpending": "Daily Spending Breakdown",
+    "cumulativeSpending": "Cumulative Spending Trend",
     "totalLimit": "Budget Limit",
     "actualSpent": "Actual Spent"
   },

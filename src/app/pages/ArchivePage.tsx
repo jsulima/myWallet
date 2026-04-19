@@ -217,11 +217,120 @@ export default function ArchivePage() {
                   </Card>
                 </div>
                 
-                {/* Spending Dynamics Chart (Phase 1) */}
+                {/* Daily Spending Breakdown (Histogram) */}
+                <Card>
+                  <CardHeader className="pb-0 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base font-semibold">{t('archive.dailySpending')}</CardTitle>
+                    </div>
+                    <History className="h-4 w-4 text-gray-400" />
+                  </CardHeader>
+                  <CardContent className="pt-4 h-80">
+                    {(!analytics?.dailySpending || analytics.dailySpending.length === 0) ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center">
+                        <TrendingDown className="h-8 w-8 text-gray-200 mb-2" />
+                        <p className="text-sm text-gray-400">{t('dashboard.noExpensesPeriod')}</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analytics.dailySpending} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                          <XAxis 
+                            dataKey="date" 
+                            type="category"
+                            fontSize={10} 
+                            tickFormatter={(val) => {
+                              if (typeof val === 'string' && val.length >= 10) {
+                                return val.split('-')[2];
+                              }
+                              return val;
+                            }}
+                            tick={{ fill: '#9ca3af' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis 
+                            fontSize={10} 
+                            tick={{ fill: '#9ca3af' }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={(val) => `$${val}`}
+                          />
+                          <Tooltip 
+                            labelFormatter={(label) => {
+                              try { return new Date(label).toLocaleDateString(); } catch (e) { return label; }
+                            }}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                            cursor={{ fill: 'rgba(99, 102, 241, 0.04)' }}
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                const sortedPayload = [...payload]
+                                  .filter(p => (p.value as number) > 0)
+                                  .sort((a, b) => (b.value as number) - (a.value as number));
+
+                                const totalDay = sortedPayload.reduce((sum, p) => sum + (p.value as number), 0);
+                                
+                                return (
+                                  <div className="bg-white p-3 border rounded-xl shadow-xl min-w-[160px]">
+                                    <p className="text-xs text-gray-500 mb-2 border-bottom pb-1 border-gray-100">{new Date(label).toLocaleDateString()}</p>
+                                    <div className="space-y-2">
+                                      {sortedPayload.map((p, idx) => (
+                                        <div key={idx} className="flex items-center justify-between gap-4">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }}></div>
+                                            <span className="text-[10px] font-medium text-gray-600">{p.name}</span>
+                                          </div>
+                                          <span className="text-[10px] font-bold text-gray-900">${formatAmount(p.value as number)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                                      <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">{t('archive.totalSpent')}</span>
+                                      <span className="text-xs font-bold text-indigo-600">${formatAmount(totalDay)}</span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          {analytics.categories.map((cat: any) => (
+                            <Bar 
+                              key={cat.categoryId}
+                              dataKey={cat.categoryId}
+                              stackId="spending"
+                              fill={cat.color}
+                              name={cat.categoryName}
+                              animationDuration={1000}
+                            />
+                          ))}
+                          {analytics?.totalLimit > 0 && (
+                            <ReferenceLine 
+                              y={analytics.totalLimit / (analytics.dailySpending.length || 1)} 
+                              stroke="#f43f5e" 
+                              strokeDasharray="4 4" 
+                              strokeWidth={1}
+                              label={{ 
+                                value: t('archive.totalLimit'), 
+                                position: 'right', 
+                                fill: '#f43f5e', 
+                                fontSize: 9, 
+                                fontWeight: 600,
+                                offset: 10
+                              }}
+                            />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Cumulative Spending Trends */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base font-semibold flex items-center justify-between">
-                      <span>{t('archive.spendingDynamics')}</span>
+                      <span>{t('archive.cumulativeSpending')}</span>
                       <span className="text-xs font-normal text-gray-500">
                         {analytics?.startDate ? new Date(analytics.startDate).toLocaleDateString() : ''} - {analytics?.endDate ? new Date(analytics.endDate).toLocaleDateString() : ''}
                       </span>
