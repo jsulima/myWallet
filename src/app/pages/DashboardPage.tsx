@@ -28,9 +28,7 @@ import {
   Tooltip, 
   ResponsiveContainer, 
   Cell,
-  ReferenceLine,
-  AreaChart,
-  Area
+  ReferenceLine
 } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -374,7 +372,17 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activePeriodAnalytics.dailySpending} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <BarChart data={activePeriodAnalytics.dailySpending} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.8}/>
+                      </linearGradient>
+                      <linearGradient id="overBarGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f43f5e" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#e11d48" stopOpacity={0.8}/>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                     <XAxis 
                       dataKey="date" 
@@ -387,49 +395,88 @@ export default function DashboardPage() {
                         return val;
                       }}
                       tick={{ fill: '#9ca3af' }}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
                       fontSize={10} 
                       tick={{ fill: '#9ca3af' }}
-                      domain={[0, (dataMax: number) => Math.max(dataMax, (activePeriodAnalytics?.totalLimit || 0) * 1.1)]}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) => `$${val}`}
                     />
                     <Tooltip 
                       labelFormatter={(label) => {
                         try { return new Date(label).toLocaleDateString(); } catch (e) { return label; }
                       }}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      cursor={{ fill: 'rgba(99, 102, 241, 0.04)' }}
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
+                          // Sort payload to show highest spending categories first
+                          const sortedPayload = [...payload]
+                            .filter(p => (p.value as number) > 0)
+                            .sort((a, b) => (b.value as number) - (a.value as number));
+
+                          const totalDay = sortedPayload.reduce((sum, p) => sum + (p.value as number), 0);
+                          
                           return (
-                            <div className="bg-white p-3 border rounded-lg shadow-lg">
-                              <p className="text-xs text-gray-500 mb-1">{new Date(label).toLocaleDateString()}</p>
-                              <p className="font-bold text-indigo-600">${formatAmount(payload[0].value as number)}</p>
-                              <p className="text-[10px] text-gray-400">{t('archive.totalSpent')}</p>
+                            <div className="bg-white p-3 border rounded-xl shadow-xl min-w-[160px]">
+                              <p className="text-xs text-gray-500 mb-2 border-bottom pb-1 border-gray-100">{new Date(label).toLocaleDateString()}</p>
+                              <div className="space-y-2">
+                                {sortedPayload.map((p, idx) => (
+                                  <div key={idx} className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }}></div>
+                                      <span className="text-[10px] font-medium text-gray-600">{p.name}</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-900">${formatAmount(p.value as number)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                                <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">{t('archive.totalSpent')}</span>
+                                <span className="text-xs font-bold text-indigo-600">${formatAmount(totalDay)}</span>
+                              </div>
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                    <Area 
-                      type="linear" 
-                      dataKey="cumulative" 
-                      stroke="#6366f1" 
-                      fill="#6366f1"
-                      fillOpacity={0.3} 
-                      strokeWidth={2.5}
-                      name={t('archive.totalSpent')}
-                      isAnimationActive={false}
-                    />
+                    {activePeriodAnalytics.categories.map((cat: any) => (
+                      <Bar 
+                        key={cat.categoryId}
+                        dataKey={cat.categoryId}
+                        stackId="spending"
+                        fill={cat.color}
+                        name={cat.categoryName}
+                        radius={[0, 0, 0, 0]} // Reset radius for base segments
+                        animationDuration={1000}
+                      />
+                    ))}
+                    {/* Add a transparent bar on top just for rounded corners of the total stack if needed, 
+                        but standard stacked bar usually has corners on the top-most segment. 
+                        Recharts applies radius to each segment if specified. 
+                        Let's try applying a small radius to all first. 
+                     */}
                     {activePeriodAnalytics?.totalLimit > 0 && (
                       <ReferenceLine 
-                        y={activePeriodAnalytics.totalLimit} 
-                        stroke="#ef4444" 
-                        strokeDasharray="5 5" 
-                        label={{ value: t('archive.totalLimit'), position: 'top', fill: '#ef4444', fontSize: 10 }}
+                        y={activePeriodAnalytics.totalLimit / (activePeriodAnalytics.dailySpending.length || 1)} 
+                        stroke="#f43f5e" 
+                        strokeDasharray="4 4" 
+                        strokeWidth={1}
+                        label={{ 
+                          value: t('archive.totalLimit'), 
+                          position: 'right', 
+                          fill: '#f43f5e', 
+                          fontSize: 9, 
+                          fontWeight: 600,
+                          offset: 10
+                        }}
                       />
                     )}
-                  </AreaChart>
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
