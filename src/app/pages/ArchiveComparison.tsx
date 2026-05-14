@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { formatAmount } from '../components/ui/utils';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts';
-import { ArrowDownRight, ArrowUpRight, TrendingUp, Zap, CalendarDays } from 'lucide-react';
+import { TrendingUp, CalendarDays } from 'lucide-react';
 
 export default function ArchiveComparison({ analytics1, analytics2 }: { analytics1: any, analytics2: any }) {
   const { t } = useTranslation();
