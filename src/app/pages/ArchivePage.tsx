@@ -3,6 +3,7 @@ import { ChevronRight, BarChart3, ArrowUpRight, ArrowDownRight, History, Zap, Ar
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import Layout from '../components/Layout';
+import ArchiveComparison from './ArchiveComparison';
 import { useTranslation } from 'react-i18next';
 import { formatAmount } from '../components/ui/utils';
 import { 
@@ -29,6 +30,9 @@ export default function ArchivePage() {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPeriodId2, setSelectedPeriodId2] = useState<string | null>(null);
+  const [analytics2, setAnalytics2] = useState<any>(null);
+  const [isLoading2, setIsLoading2] = useState(false);
 
   const finishedPeriods = budgetPeriods.filter(p => p.status === 'FINISHED');
 
@@ -41,6 +45,18 @@ export default function ArchivePage() {
         .finally(() => setIsLoading(false));
     }
   }, [selectedPeriodId, fetchPeriodAnalytics]);
+
+  useEffect(() => {
+    if (selectedPeriodId2) {
+      setIsLoading2(true);
+      fetchPeriodAnalytics(selectedPeriodId2)
+        .then(setAnalytics2)
+        .catch(console.error)
+        .finally(() => setIsLoading2(false));
+    } else {
+      setAnalytics2(null);
+    }
+  }, [selectedPeriodId2, fetchPeriodAnalytics]);
 
   return (
     <Layout>
@@ -108,8 +124,54 @@ export default function ArchivePage() {
                 </div>
               </div>
             ) : analytics ? (
-              <>
-                {/* Smart Recommendations (Phase 4) */}
+              <div className="space-y-6">
+                {/* Header with Comparison Action */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100 gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold">{analytics.periodName}</h2>
+                    <p className="text-xs text-gray-500">
+                      {new Date(analytics.startDate).toLocaleDateString()} - {new Date(analytics.endDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {selectedPeriodId2 ? (
+                      <button 
+                        onClick={() => setSelectedPeriodId2(null)}
+                        className="text-sm px-3 py-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors font-medium"
+                      >
+                        {t('archive.stopCompare')}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-600">{t('archive.compareWith')}</span>
+                        <select
+                          className="text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1.5 pl-3 pr-8"
+                          value={selectedPeriodId2 || ""}
+                          onChange={(e) => setSelectedPeriodId2(e.target.value || null)}
+                        >
+                          <option value="">-- {t('archive.selectPeriod')} --</option>
+                          {finishedPeriods.filter(p => p.id !== selectedPeriodId).map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectedPeriodId2 && isLoading2 ? (
+                  <div className="space-y-6">
+                    <Skeleton className="h-32 w-full" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Skeleton className="h-64" />
+                      <Skeleton className="h-64" />
+                    </div>
+                  </div>
+                ) : selectedPeriodId2 && analytics2 ? (
+                  <ArchiveComparison analytics1={analytics} analytics2={analytics2} />
+                ) : (
+                  <>
+                    {/* Smart Recommendations (Phase 4) */}
                 <div className="space-y-4">
                   {(analytics?.totalSpent > analytics?.totalLimit || analytics?.categories?.some((c: any) => c.spent > c.limit)) ? (
                     <Card className="border-amber-200 bg-amber-50/50">
@@ -561,6 +623,8 @@ export default function ArchivePage() {
                     </CardContent>
                 </Card>
               </>
+            )}
+            </div>
             ) : null}
           </div>
         </div>

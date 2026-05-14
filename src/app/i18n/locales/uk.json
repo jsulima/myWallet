@@ -187,7 +187,15 @@
     "dailySpending": "Щоденний розподіл витрат",
     "cumulativeSpending": "Кумулятивний тренд витрат",
     "totalLimit": "Бюджетний ліміт",
-    "actualSpent": "Фактично витрачено"
+    "actualSpent": "Фактично витрачено",
+    "compare": "Порівняти",
+    "compareWith": "Порівняти з...",
+    "stopCompare": "Припинити порівняння",
+    "period1": "Період 1",
+    "period2": "Період 2",
+    "dayOfPeriod": "День періоду",
+    "delta": "Різниця",
+    "recurringTrends": "Тренди регулярних витрат"
   },
   "categories": {
     "title": "Категорії",

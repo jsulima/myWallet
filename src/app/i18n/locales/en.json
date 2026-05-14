@@ -187,7 +187,15 @@
     "dailySpending": "Daily Spending Breakdown",
     "cumulativeSpending": "Cumulative Spending Trend",
     "totalLimit": "Budget Limit",
-    "actualSpent": "Actual Spent"
+    "actualSpent": "Actual Spent",
+    "compare": "Compare",
+    "compareWith": "Compare with...",
+    "stopCompare": "Stop Comparing",
+    "period1": "Period 1",
+    "period2": "Period 2",
+    "dayOfPeriod": "Day of Period",
+    "delta": "Delta",
+    "recurringTrends": "Recurring Spends Trends"
   },
   "categories": {
     "title": "Categories",
