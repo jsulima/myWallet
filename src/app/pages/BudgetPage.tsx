@@ -531,7 +531,7 @@ export default function BudgetPage() {
                               {t('budget.pinned')}
                             </Badge>
                           )}
-                          <h4 className={`font-bold tracking-tight truncate text-gray-900 dark:text-gray-100 ${titleSize}`}>
+                          <h4 className={`font-bold tracking-tight text-gray-900 dark:text-gray-100 ${titleSize}`}>
                             {bp.category?.name || 'Category'}
                           </h4>
                           {isProportional && items.length > 1 && (
