@@ -581,7 +581,7 @@ export default function TransactionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('transactions.all')}</SelectItem>
-                {budgetPeriods.map((period) => (
+                {(budgetPeriods || []).map((period) => (
                   <SelectItem key={period.id} value={period.id}>
                     {period.name}
                   </SelectItem>

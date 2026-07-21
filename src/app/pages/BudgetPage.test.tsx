@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import BudgetPage from './BudgetPage';
 import { useApp } from '../context/AppContext';
+import i18n from '../i18n/config';
 
 // Mock dependencies
 vi.mock('../context/AppContext', () => ({
@@ -74,6 +75,7 @@ describe('BudgetPage Lifecycle Actions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    i18n.changeLanguage('en');
   });
 
   it('renders bulk action buttons', () => {

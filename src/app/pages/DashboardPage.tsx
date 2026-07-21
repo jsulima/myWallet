@@ -83,7 +83,7 @@ export default function DashboardPage() {
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
 
   // Determine active budget period
-  const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
+  const activePeriod = (budgetPeriods || []).find(p => p.status === 'ACTIVE');
   // Use budgets associated with the active period, or all active budgets if no period is defined
   const activeBudgets = budgetPlans.filter(bp => 
     bp.status === 'ACTIVE' && (!activePeriod || bp.periodId === activePeriod.id)

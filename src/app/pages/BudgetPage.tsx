@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers } from 'lucide-react';
+import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -20,11 +20,19 @@ import { formatAmount } from '../components/ui/utils';
 
 export default function BudgetPage() {
   const { t } = useTranslation();
-  const { 
-    budgetPlans, addBudgetPlan, updateBudgetPlan, deleteBudgetPlan, 
-    categories, transactions, wallets,
-    budgetPeriods, addBudgetPeriod, updateBudgetPeriod, cloneBudgetPeriod 
-  } = useApp();
+  const appData = useApp();
+  const budgetPlans = appData?.budgetPlans || [];
+  const addBudgetPlan = appData?.addBudgetPlan;
+  const updateBudgetPlan = appData?.updateBudgetPlan;
+  const deleteBudgetPlan = appData?.deleteBudgetPlan;
+  const categories = appData?.categories || [];
+  const transactions = appData?.transactions || [];
+  const wallets = appData?.wallets || [];
+  const budgetPeriods = appData?.budgetPeriods || [];
+  const addBudgetPeriod = appData?.addBudgetPeriod;
+  const updateBudgetPeriod = appData?.updateBudgetPeriod;
+  const cloneBudgetPeriod = appData?.cloneBudgetPeriod;
+
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
@@ -35,11 +43,12 @@ export default function BudgetPage() {
   const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
-  
+  const [viewMode, setViewMode] = useState<'proportional' | 'grid'>('proportional');
+
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  
+
   const [dateRange, setDateRange] = useState({
     startDate: firstDay.toISOString().split('T')[0],
     endDate: lastDay.toISOString().split('T')[0],
@@ -66,7 +75,7 @@ export default function BudgetPage() {
 
   const convertCurrency = (amount: number, from: string, to: string) => {
     if (from === to) return amount;
-    
+
     let amountInUSD = amount;
     if (from !== 'USD') {
       const fromRate = rates.find(r => r.from === from && r.to === 'USD');
@@ -75,11 +84,11 @@ export default function BudgetPage() {
     }
 
     if (to === 'USD') return amountInUSD;
-    
+
     const toRate = rates.find(r => r.from === 'USD' && r.to === to);
     if (toRate) return amountInUSD * toRate.rate;
     if (to === 'UAH') return amountInUSD * 40;
-    
+
     return amountInUSD;
   };
 
@@ -88,6 +97,7 @@ export default function BudgetPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addBudgetPlan || !updateBudgetPlan) return;
     setIsLoading(true);
     try {
       const budgetData = {
@@ -138,18 +148,19 @@ export default function BudgetPage() {
 
   const handleCloneToDraft = async () => {
     const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
-    
+
     if (activePeriod) {
-        setIsLoading(true);
-        try {
-            await cloneBudgetPeriod(activePeriod.id);
-            toast.success(t('budget.successClone'));
-        } catch (error: any) {
-            toast.error(error.message || t('budget.failClone'));
-        } finally {
-            setIsLoading(false);
-        }
-        return;
+      if (!cloneBudgetPeriod) return;
+      setIsLoading(true);
+      try {
+        await cloneBudgetPeriod(activePeriod.id);
+        toast.success(t('budget.successClone'));
+      } catch (error: any) {
+        toast.error(error.message || t('budget.failClone'));
+      } finally {
+        setIsLoading(false);
+      }
+      return;
     }
 
     const standaloneActiveBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE' && !bp.periodId);
@@ -157,6 +168,8 @@ export default function BudgetPage() {
       toast.error(t('budget.noActiveClone'));
       return;
     }
+
+    if (!addBudgetPlan) return;
 
     setIsLoading(true);
     try {
@@ -168,7 +181,7 @@ export default function BudgetPage() {
       nextEnd.setHours(23, 59, 59, 999);
 
       await Promise.all(
-        standaloneActiveBudgets.map(bp => 
+        standaloneActiveBudgets.map(bp =>
           addBudgetPlan({
             categoryId: bp.categoryId,
             limit: bp.limit,
@@ -205,9 +218,13 @@ export default function BudgetPage() {
     setIsLoading(true);
     try {
       if (activePeriod) {
-        await updateBudgetPeriod(activePeriod.id, { status: 'FINISHED', endDate: activePeriod.endDate });
+        if (updateBudgetPeriod) {
+          await updateBudgetPeriod(activePeriod.id, { status: 'FINISHED', endDate: activePeriod.endDate });
+        }
       } else {
-        await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
+        if (updateBudgetPlan) {
+          await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
+        }
       }
       toast.success(t('budget.successFinish'));
     } catch (error: any) {
@@ -218,7 +235,7 @@ export default function BudgetPage() {
   };
 
   const onConfirmDeleteBudget = async () => {
-    if (!budgetToDelete) return;
+    if (!budgetToDelete || !deleteBudgetPlan) return;
     try {
       await deleteBudgetPlan(budgetToDelete);
       toast.success(t('budget.successDelete'));
@@ -231,25 +248,26 @@ export default function BudgetPage() {
 
   const handleCreatePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addBudgetPeriod) return;
     setIsLoading(true);
     try {
-        await addBudgetPeriod({
-            name: periodFormData.name,
-            startDate: new Date(periodFormData.startDate).toISOString(),
-            endDate: new Date(periodFormData.endDate).toISOString(),
-            status: 'DRAFT'
-        });
-        toast.success(t('budget.successCreate'));
-        setIsPeriodOpen(false);
-        setPeriodFormData({
-            name: '',
-            startDate: firstDay.toISOString().split('T')[0],
-            endDate: lastDay.toISOString().split('T')[0],
-        });
+      await addBudgetPeriod({
+        name: periodFormData.name,
+        startDate: new Date(periodFormData.startDate).toISOString(),
+        endDate: new Date(periodFormData.endDate).toISOString(),
+        status: 'DRAFT'
+      });
+      toast.success(t('budget.successCreate'));
+      setIsPeriodOpen(false);
+      setPeriodFormData({
+        name: '',
+        startDate: firstDay.toISOString().split('T')[0],
+        endDate: lastDay.toISOString().split('T')[0],
+      });
     } catch (error: any) {
-        toast.error(error.message || t('budget.failSave'));
+      toast.error(error.message || t('budget.failSave'));
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -265,7 +283,7 @@ export default function BudgetPage() {
 
   const handleUpdatePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingPeriod) return;
+    if (!editingPeriod || !updateBudgetPeriod) return;
     setIsLoading(true);
     try {
       await updateBudgetPeriod(editingPeriod.id, {
@@ -285,7 +303,7 @@ export default function BudgetPage() {
 
   const handleActivateAll = async () => {
     const draftBudgets = budgetPlans.filter(bp => bp.status === 'DRAFT');
-    if (draftBudgets.length === 0) return;
+    if (draftBudgets.length === 0 || !updateBudgetPlan) return;
     setIsLoading(true);
     try {
       await Promise.all(draftBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'ACTIVE' })));
@@ -300,7 +318,7 @@ export default function BudgetPage() {
   const getSpentAmount = (categoryId: string, startStr: string, endStr: string, budgetCurrency: string) => {
     const start = new Date(startStr);
     const end = new Date(endStr);
-    
+
     return transactions
       .filter(t => {
         const d = new Date(t.date);
@@ -344,177 +362,407 @@ export default function BudgetPage() {
 
   const overBudgetCount = activeBudgets.filter(bp => bp.spentAmount > bp.limit).length;
 
+  const renderBudgetGrid = (budgetsList: any[], periodStatus?: string, periodId?: string) => {
+    const safeList = budgetsList || [];
+    if (safeList.length === 0 && periodStatus !== 'DRAFT') {
+      return null;
+    }
+
+    const items = safeList.map(bp => {
+      const category = getCategoryById(bp.categoryId);
+      const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
+      const limitUSD = convertCurrency(bp.limit, bp.currency || 'USD', 'USD');
+      return {
+        ...bp,
+        category,
+        spentAmount,
+        limitUSD,
+      };
+    });
+
+    const totalUSD = items.reduce((sum, item) => sum + item.limitUSD, 0) || 1;
+    const maxUSD = Math.max(...items.map(item => item.limitUSD), 1);
+
+    const isProportional = viewMode === 'proportional';
+
+    const containerClasses = isProportional
+      ? "flex flex-wrap gap-4 items-stretch"
+      : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+
+    return (
+      <div className={containerClasses}>
+        {items.map(bp => {
+          const percent = bp.limit > 0 ? (bp.spentAmount / bp.limit) * 100 : 0;
+          const delta = bp.limit - bp.spentAmount;
+          const isOver = delta < 0;
+          const currencySymbol = bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency;
+
+          const share = bp.limitUSD / totalUSD;
+          const relativeRatio = bp.limitUSD / maxUSD;
+          const sharePercent = Math.round(share * 100);
+
+          const flexGrow = isProportional ? Math.max(1, Math.round(relativeRatio * 12)) : undefined;
+          const flexBasis = isProportional
+            ? (relativeRatio >= 0.65 ? 'calc(55% - 1rem)' : relativeRatio >= 0.35 ? 'calc(35% - 1rem)' : 'calc(24% - 1rem)')
+            : undefined;
+          const minWidth = isProportional ? (relativeRatio >= 0.5 ? '260px' : '200px') : undefined;
+          const minHeight = isProportional ? `${Math.max(140, Math.min(250, Math.round(130 + relativeRatio * 110)))}px` : undefined;
+
+          const cardStyle = isProportional ? {
+            flexGrow,
+            flexBasis,
+            minWidth,
+            minHeight,
+            background: bp.category?.color 
+              ? `linear-gradient(135deg, ${bp.category.color}15 0%, ${bp.category.color}03 100%)` 
+              : undefined,
+            borderColor: bp.category?.color ? `${bp.category.color}35` : undefined,
+          } : {
+            background: bp.category?.color 
+              ? `linear-gradient(135deg, ${bp.category.color}12 0%, ${bp.category.color}02 100%)` 
+              : undefined,
+          };
+
+          const titleSize = isProportional && relativeRatio >= 0.5 ? 'text-base sm:text-lg' : 'text-sm font-bold';
+          const amountSize = isProportional && relativeRatio >= 0.5 ? 'text-lg sm:text-xl font-bold' : 'text-sm font-semibold';
+          const progressHeight = isProportional && relativeRatio >= 0.5 ? 'h-2.5' : 'h-1.5';
+
+          return (
+            <Tooltip key={bp.id}>
+              <TooltipTrigger asChild>
+                <Card
+                  className={`relative overflow-hidden group cursor-pointer hover:shadow-lg transition-all duration-300 flex flex-col justify-between ${
+                    periodStatus === 'DRAFT' ? 'opacity-80 border-dashed' : ''
+                  }`}
+                  style={cardStyle}
+                  onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
+                >
+                  <div
+                    className="absolute top-0 left-0 w-1.5 h-full transition-all duration-300 group-hover:w-2"
+                    style={{ backgroundColor: bp.category?.color || '#3b82f6' }}
+                  />
+
+                  <CardContent className="pt-4 pb-3 px-4 flex flex-col justify-between h-full space-y-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className={`font-bold tracking-tight truncate text-gray-900 dark:text-gray-100 ${titleSize}`}>
+                            {bp.category?.name || 'Category'}
+                          </h4>
+                          {isProportional && items.length > 1 && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">
+                              {t('budget.shareOfTotal', { percent: sharePercent })}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-400">
+                          {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setBudgetToDelete(bp.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {bp.note && isProportional && relativeRatio >= 0.3 && (
+                      <p className="text-xs text-gray-500 italic line-clamp-1">
+                        "{bp.note}"
+                      </p>
+                    )}
+
+                    <div className="space-y-2 mt-auto">
+                      <div className="flex justify-between items-baseline text-xs gap-2">
+                        <span className={`text-gray-900 dark:text-gray-100 ${amountSize}`}>
+                          {currencySymbol}{formatAmount(bp.spentAmount)}
+                        </span>
+                        <span className="text-gray-400 font-medium">
+                          {t('budget.of')} {currencySymbol}{formatAmount(bp.limit)}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                          <div
+                            className={`rounded-full transition-all duration-500 ${progressHeight} ${
+                              percent > 100
+                                ? 'bg-red-500'
+                                : percent >= 80
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(percent, 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className={`font-semibold ${isOver ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {isOver ? t('budget.over') : t('budget.left')}: {currencySymbol}{formatAmount(Math.abs(delta))}
+                          </span>
+                          <span className="text-gray-400 font-medium">{Math.round(percent)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="font-medium text-xs">
+                  {isOver ? t('budget.over') : t('budget.left')}:
+                  <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
+                    {currencySymbol}{formatAmount(Math.abs(delta))}
+                  </span>
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+
+        {periodStatus && periodStatus !== 'FINISHED' && (
+          <Card
+            className={`flex flex-col items-center justify-center p-6 border-dashed border-2 opacity-50 hover:opacity-100 hover:border-indigo-400 transition-all cursor-pointer bg-gray-50/50 ${
+              isProportional ? 'min-w-[180px] min-h-[140px] flex-grow' : 'min-h-[140px]'
+            }`}
+            onClick={() => {
+              if (periodId) {
+                setFormData({ ...formData, status: periodStatus as any, periodId: periodId });
+                const periodObj = (budgetPeriods || []).find(p => p.id === periodId);
+                if (periodObj) {
+                  setDateRange({
+                    startDate: new Date(periodObj.startDate).toISOString().split('T')[0],
+                    endDate: new Date(periodObj.endDate).toISOString().split('T')[0]
+                  });
+                }
+              }
+              setIsOpen(true);
+            }}
+          >
+            <Plus className="h-6 w-6 text-indigo-500 mb-2" />
+            <p className="text-xs text-indigo-600 font-medium">{t('budget.addBudget')}</p>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold">{t('budget.title')}</h1>
           <p className="text-gray-600">{t('budget.subtitle')}</p>
-          <div className="flex flex-wrap items-center gap-2 mt-2 justify-end">
-            <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading}>
-              <Copy className="h-4 w-4 mr-2" />
-              {t('budget.cloneDraft')}
-            </Button>
-            <Button variant="outline" className="text-red-600 border-red-100 hover:bg-red-50" onClick={handleFinishAll} disabled={isLoading || activeBudgets.length === 0}>
-              <FastForward className="h-4 w-4 mr-2" />
-              {t('budget.finishAll')}
-            </Button>
-            <Button variant="outline" className="text-green-600 border-green-100 hover:bg-green-50" onClick={handleActivateAll} disabled={isLoading || draftBudgets.length === 0}>
-              <Zap className="h-4 w-4 mr-2" />
-              {t('budget.activateDrafts')}
-            </Button>
-            
-            <Dialog open={isPeriodOpen} onOpenChange={setIsPeriodOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="border-indigo-100 text-indigo-600 hover:bg-indigo-50">
-                  <Layers className="h-4 w-4 mr-2" />
-                  {t('budget.createPeriod')}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t('budget.createPeriod')}</DialogTitle>
-                  <DialogDescription>{t('budget.namePeriod')}</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreatePeriod} className="space-y-4">
-                  <div>
-                    <Label htmlFor="periodName">{t('budget.periodName')}</Label>
-                    <Input 
-                        id="periodName" 
-                        placeholder={t('budget.periodNamePlaceholder') || ''} 
-                        value={periodFormData.name} 
+          <div className="flex flex-wrap items-center gap-2 mt-2 justify-between">
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setViewMode('proportional')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'proportional'
+                    ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-900 dark:text-indigo-400 font-bold'
+                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <PieChart className="h-3.5 w-3.5" />
+                {t('budget.proportionalView')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-900 dark:text-indigo-400 font-bold'
+                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                {t('budget.gridView')}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading}>
+                <Copy className="h-4 w-4 mr-2" />
+                {t('budget.cloneDraft')}
+              </Button>
+              <Button variant="outline" className="text-red-600 border-red-100 hover:bg-red-50" onClick={handleFinishAll} disabled={isLoading || activeBudgets.length === 0}>
+                <FastForward className="h-4 w-4 mr-2" />
+                {t('budget.finishAll')}
+              </Button>
+              <Button variant="outline" className="text-green-600 border-green-100 hover:bg-green-50" onClick={handleActivateAll} disabled={isLoading || draftBudgets.length === 0}>
+                <Zap className="h-4 w-4 mr-2" />
+                {t('budget.activateDrafts')}
+              </Button>
+
+              <Dialog open={isPeriodOpen} onOpenChange={setIsPeriodOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="border-indigo-100 text-indigo-600 hover:bg-indigo-50">
+                    <Layers className="h-4 w-4 mr-2" />
+                    {t('budget.createPeriod')}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t('budget.createPeriod')}</DialogTitle>
+                    <DialogDescription>{t('budget.namePeriod')}</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleCreatePeriod} className="space-y-4">
+                    <div>
+                      <Label htmlFor="periodName">{t('budget.periodName')}</Label>
+                      <Input
+                        id="periodName"
+                        placeholder={t('budget.periodNamePlaceholder') || ''}
+                        value={periodFormData.name}
                         onChange={(e) => setPeriodFormData({ ...periodFormData, name: e.target.value })}
                         required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="pStartDate">{t('budget.startDate')}</Label>
-                      <Input id="pStartDate" type="date" value={periodFormData.startDate} onChange={(e) => setPeriodFormData({ ...periodFormData, startDate: e.target.value })} />
+                      />
                     </div>
-                    <div>
-                      <Label htmlFor="pEndDate">{t('budget.endDate')}</Label>
-                      <Input id="pEndDate" type="date" value={periodFormData.endDate} onChange={(e) => setPeriodFormData({ ...periodFormData, endDate: e.target.value })} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="pStartDate">{t('budget.startDate')}</Label>
+                        <Input id="pStartDate" type="date" value={periodFormData.startDate} onChange={(e) => setPeriodFormData({ ...periodFormData, startDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label htmlFor="pEndDate">{t('budget.endDate')}</Label>
+                        <Input id="pEndDate" type="date" value={periodFormData.endDate} onChange={(e) => setPeriodFormData({ ...periodFormData, endDate: e.target.value })} />
+                      </div>
                     </div>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading || !periodFormData.name}>
-                    {isLoading ? t('budget.saving') : t('budget.createBtn')}
+                    <Button type="submit" className="w-full" disabled={isLoading || !periodFormData.name}>
+                      {isLoading ? t('budget.saving') : t('budget.createBtn')}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isOpen} onOpenChange={(open) => {
+                setIsOpen(open);
+                if (!open) {
+                  setEditingBudget(null);
+                  setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: 'none' });
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t('budget.addBudget')}
                   </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingBudget ? t('budget.editBudget') : t('budget.createBudget')}</DialogTitle>
+                    <DialogDescription>{t('budget.description')}</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="startDate">{t('budget.startDate')}</Label>
+                        <Input id="startDate" type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label htmlFor="endDate">{t('budget.endDate')}</Label>
+                        <Input id="endDate" type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
+                      </div>
+                    </div>
 
-            <Dialog open={isOpen} onOpenChange={(open) => {
-              setIsOpen(open);
-              if (!open) {
-                setEditingBudget(null);
-                setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: 'none' });
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('budget.addBudget')}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingBudget ? t('budget.editBudget') : t('budget.createBudget')}</DialogTitle>
-                  <DialogDescription>{t('budget.description')}</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="startDate">{t('budget.startDate')}</Label>
-                      <Input id="startDate" type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
-                    </div>
-                    <div>
-                      <Label htmlFor="endDate">{t('budget.endDate')}</Label>
-                      <Input id="endDate" type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
-                    </div>
-                  </div>
+                    {!editingBudget && (
+                      <div>
+                        <Label htmlFor="category">{t('budget.category')}</Label>
+                        <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
+                          <SelectTrigger id="category">
+                            <SelectValue placeholder={t('budget.selectCategory') || ''} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.filter(c => c.type === 'EXPENSE').map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
-                  {!editingBudget && (
-                    <div>
-                      <Label htmlFor="category">{t('budget.category')}</Label>
-                      <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
-                        <SelectTrigger id="category">
-                          <SelectValue placeholder={t('budget.selectCategory') || ''} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.filter(c => c.type === 'EXPENSE').map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="limit">{t('budget.plannedAmount')}</Label>
+                        <Input id="limit" type="number" step="0.01" value={formData.limit} onChange={(e) => setFormData({ ...formData, limit: e.target.value })} required />
+                      </div>
+                      <div>
+                        <Label htmlFor="currency">{t('wallet.currency')}</Label>
+                        <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                          <SelectTrigger id="currency">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="USD">USD ($)</SelectItem>
+                            <SelectItem value="UAH">UAH (₴)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="limit">{t('budget.plannedAmount')}</Label>
-                      <Input id="limit" type="number" step="0.01" value={formData.limit} onChange={(e) => setFormData({ ...formData, limit: e.target.value })} required />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="status">{t('budget.status')}</Label>
+                        <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
+                          <SelectTrigger id="status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DRAFT">{t('budget.statusDraft')}</SelectItem>
+                            <SelectItem value="ACTIVE">{t('budget.statusActive')}</SelectItem>
+                            <SelectItem value="FINISHED">{t('budget.statusFinished')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="period">{t('budget.archiveGroup')}</Label>
+                        <Select value={formData.periodId} onValueChange={(v) => setFormData({ ...formData, periodId: v })}>
+                          <SelectTrigger id="period">
+                            <SelectValue placeholder="No period" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {budgetPeriods.filter(p => p.status !== 'FINISHED' || formData.periodId === p.id).map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name} ({p.status})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="currency">{t('wallet.currency')}</Label>
-                      <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
-                        <SelectTrigger id="currency">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="UAH">UAH (₴)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="status">{t('budget.status')}</Label>
-                      <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
-                        <SelectTrigger id="status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="DRAFT">{t('budget.statusDraft')}</SelectItem>
-                          <SelectItem value="ACTIVE">{t('budget.statusActive')}</SelectItem>
-                          <SelectItem value="FINISHED">{t('budget.statusFinished')}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="note">{t('budget.note')}</Label>
+                      <Input
+                        id="note"
+                        placeholder={t('budget.notePlaceholder') || ''}
+                        value={formData.note}
+                        onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                      />
                     </div>
-                    <div>
-                      <Label htmlFor="period">{t('budget.archiveGroup')}</Label>
-                      <Select value={formData.periodId} onValueChange={(v) => setFormData({ ...formData, periodId: v })}>
-                        <SelectTrigger id="period">
-                          <SelectValue placeholder="No period" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {budgetPeriods.filter(p => p.status !== 'FINISHED' || formData.periodId === p.id).map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.status})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <div>
-                    <Label htmlFor="note">{t('budget.note')}</Label>
-                    <Input 
-                      id="note" 
-                      placeholder={t('budget.notePlaceholder') || ''} 
-                      value={formData.note} 
-                      onChange={(e) => setFormData({ ...formData, note: e.target.value })} 
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? t('budget.saving') : editingBudget ? t('budget.updateBtn') : t('budget.createBtn')}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? t('budget.saving') : editingBudget ? t('budget.updateBtn') : t('budget.createBtn')}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
 
@@ -545,7 +793,7 @@ export default function BudgetPage() {
                 </div>
               ))}
               {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
-              
+
               {Object.entries(summaryByCurrency).map(([cur, data]) => (
                 <div key={cur} className="flex items-center gap-3 mt-2">
                   <Progress value={data.planned > 0 ? (data.spent / data.planned) * 100 : 0} className="h-1 flex-1" />
@@ -599,231 +847,79 @@ export default function BudgetPage() {
             if (periodBudgets.length === 0 && period.status !== 'DRAFT') return null;
 
             return (
-                <div key={period.id} className="space-y-4 pt-4 border-t first:border-t-0 first:pt-0">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold flex items-center gap-2">
-                            {period.status === 'ACTIVE' ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            ) : (
-                                <Calendar className="h-5 w-5 text-blue-500" />
-                            )}
-                            {period.name}
-                            <Badge variant={period.status === 'ACTIVE' ? 'default' : 'secondary'} className="ml-2">
-                                {period.status}
-                            </Badge>
-                        </h2>
-                        <div className="flex gap-2">
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-gray-500 hover:text-gray-700"
-                                onClick={() => handleEditPeriod(period)}
-                            >
-                                <Edit2 className="h-3 w-3 mr-1" />
-                                {t('common.edit')}
-                            </Button>
-                            {period.status === 'DRAFT' && (
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="text-green-600 border-green-100"
-                                    onClick={() => updateBudgetPeriod(period.id, { status: 'ACTIVE', endDate: period.endDate })}
-                                >
-                                    <Zap className="h-3 w-3 mr-1" />
-                                    {t('budget.activateDrafts')}
-                                </Button>
-                            )}
-                            {period.status === 'ACTIVE' && (
-                                <>
-                                    <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="text-blue-600 border-blue-100"
-                                        onClick={() => cloneBudgetPeriod(period.id)}
-                                    >
-                                        <Copy className="h-3 w-3 mr-1" />
-                                        {t('budget.cloneDraft')}
-                                    </Button>
-                                    <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="text-red-600 border-red-100"
-                                        onClick={() => handleFinishAll()}
-                                    >
-                                        <FastForward className="h-3 w-3 mr-1" />
-                                        {t('budget.finishPeriod')}
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {periodBudgets.map(bp => {
-                            const category = getCategoryById(bp.categoryId);
-                            const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
-                            const percent = (spentAmount / bp.limit) * 100;
-                            const delta = bp.limit - spentAmount;
-                            const isOver = delta < 0;
-                            const currencySymbol = bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency;
-                            
-                            return (
-                                <Tooltip key={bp.id}>
-                                    <TooltipTrigger asChild>
-                                        <Card 
-                                            className={`relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow ${period.status === 'DRAFT' ? 'opacity-70 border-dashed' : ''}`}
-                                            onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
-                                        >
-                                            <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
-                                            <CardContent className="pt-4 pb-3 px-4">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <h4 className="font-bold text-sm">{category?.name}</h4>
-                                                        <p className="text-[10px] text-gray-400">
-                                                            {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                                        <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5">
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="h-7 w-7 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" 
-                                                                onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                                                            >
-                                                                <Edit2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" 
-                                                                onClick={(e) => { e.stopPropagation(); setBudgetToDelete(bp.id); }}
-                                                            >
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <div className="flex justify-between text-xs mb-1 items-center">
-                                                        <span className="font-medium">
-                                                            {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(spentAmount)}
-                                                        </span>
-                                                        <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(bp.limit)}</span>
-                                                    </div>
-                                                    <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        <p className="font-medium">
-                                            {isOver ? t('budget.over') : t('budget.left')}: 
-                                            <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                                                {currencySymbol}{formatAmount(Math.abs(delta))}
-                                            </span>
-                                        </p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            );
-                        })}
-                        {period.status !== 'FINISHED' && (
-                             <Card 
-                                className="flex flex-col items-center justify-center p-6 border-dashed border-2 opacity-50 hover:opacity-100 hover:border-blue-400 transition-all cursor-pointer bg-gray-50/50"
-                                onClick={() => {
-                                    setFormData({ ...formData, status: period.status as any, periodId: period.id });
-                                    setDateRange({
-                                        startDate: new Date(period.startDate).toISOString().split('T')[0],
-                                        endDate: new Date(period.endDate).toISOString().split('T')[0]
-                                    });
-                                    setIsOpen(true);
-                                }}
-                             >
-                                <Plus className="h-6 w-6 text-gray-400 mb-2" />
-                                <p className="text-xs text-gray-500 font-medium">{t('budget.addBudget')}</p>
-                             </Card>
-                        )}
-                    </div>
+              <div key={period.id} className="space-y-4 pt-4 border-t first:border-t-0 first:pt-0">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    {period.status === 'ACTIVE' ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <Calendar className="h-5 w-5 text-blue-500" />
+                    )}
+                    {period.name}
+                    <Badge variant={period.status === 'ACTIVE' ? 'default' : 'secondary'} className="ml-2">
+                      {period.status}
+                    </Badge>
+                  </h2>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-gray-500 hover:text-gray-700"
+                      onClick={() => handleEditPeriod(period)}
+                    >
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      {t('common.edit')}
+                    </Button>
+                    {period.status === 'DRAFT' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600 border-green-100"
+                        onClick={() => updateBudgetPeriod && updateBudgetPeriod(period.id, { status: 'ACTIVE', endDate: period.endDate })}
+                      >
+                        <Zap className="h-3 w-3 mr-1" />
+                        {t('budget.activateDrafts')}
+                      </Button>
+                    )}
+                    {period.status === 'ACTIVE' && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 border-blue-100"
+                          onClick={() => cloneBudgetPeriod && cloneBudgetPeriod(period.id)}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          {t('budget.cloneDraft')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 border-red-100"
+                          onClick={() => handleFinishAll()}
+                        >
+                          <FastForward className="h-3 w-3 mr-1" />
+                          {t('budget.finishPeriod')}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
+
+                {renderBudgetGrid(periodBudgets, period.status, period.id)}
+              </div>
             );
-        })}
+          })}
 
         {/* Existing Standalone Budgets */}
         {budgetPlans.filter(bp => !bp.periodId && bp.status !== 'FINISHED').length > 0 && (
-            <div className="space-y-4 pt-4 border-t">
-                <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-400">
-                    <Layers className="h-5 w-5" />
-                    Standalone Budgets
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {budgetPlans.filter(bp => !bp.periodId && bp.status !== 'FINISHED').map(bp => {
-                        const category = getCategoryById(bp.categoryId);
-                        const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
-                        const percent = (spentAmount / bp.limit) * 100;
-                        const delta = bp.limit - spentAmount;
-                        const isOver = delta < 0;
-                        const currencySymbol = bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency;
-                        return (
-                            <Tooltip key={bp.id}>
-                                <TooltipTrigger asChild>
-                                    <Card 
-                                        className="relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
-                                        onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
-                                    >
-                                        <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: category?.color }} />
-                                        <CardContent className="pt-4 pb-3 px-4">
-                                          <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                              <h4 className="font-bold text-sm">{category?.name}</h4>
-                                              <p className="text-[10px] text-gray-400">
-                                                {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
-                                              </p>
-                                            </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                              <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5">
-                                                <Button 
-                                                  variant="ghost" 
-                                                  size="icon" 
-                                                  className="h-7 w-7 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" 
-                                                  onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                                                >
-                                                  <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button 
-                                                  variant="ghost" 
-                                                  size="icon" 
-                                                  className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" 
-                                                  onClick={(e) => { e.stopPropagation(); deleteBudgetPlan(bp.id); }}
-                                                >
-                                                  <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          </div>
-                                          <div className="space-y-1">
-                                            <div className="flex justify-between text-xs mb-1 items-center">
-                                              <span className="font-medium">
-                                                  {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(spentAmount)}
-                                              </span>
-                                              <span className="text-gray-400">{t('budget.of')} {bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency}{formatAmount(bp.limit)}</span>
-                                            </div>
-                                            <Progress value={Math.min(percent, 100)} className={`h-1.5 ${percent > 100 ? 'bg-red-100' : ''}`} />
-                                          </div>
-                                        </CardContent>
-                                    </Card>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p className="font-medium">
-                                            {isOver ? t('budget.over') : t('budget.left')}: 
-                                            <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                                                {currencySymbol}{formatAmount(Math.abs(delta))}
-                                            </span>
-                                    </p>
-                                </TooltipContent>
-                            </Tooltip>
-                        );
-                    })}
-                </div>
-            </div>
+          <div className="space-y-4 pt-4 border-t">
+            <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-400">
+              <Layers className="h-5 w-5" />
+              {t('budget.plannedTitle')}
+            </h2>
+            {renderBudgetGrid(budgetPlans.filter(bp => !bp.periodId && bp.status !== 'FINISHED'))}
+          </div>
         )}
       </div>
 
