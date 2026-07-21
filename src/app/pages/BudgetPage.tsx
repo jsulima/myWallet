@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid } from 'lucide-react';
+import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid, Pin, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -44,6 +44,25 @@ export default function BudgetPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   const [viewMode, setViewMode] = useState<'proportional' | 'grid'>('proportional');
+
+  // Ordering & Pinning State
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('mywallet_pinned_budgets') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [customOrders, setCustomOrders] = useState<Record<string, string[]>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('mywallet_budget_orders') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const [sortByMode, setSortByMode] = useState<'custom' | 'limit' | 'spent' | 'name'>('custom');
 
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -94,6 +113,37 @@ export default function BudgetPage() {
 
   const getWalletById = (id: string) => wallets.find(w => w.id === id);
   const getCategoryById = (id: string) => categories.find(c => c.id === id);
+
+  const handleTogglePin = (id: string) => {
+    const isPinned = pinnedIds.includes(id);
+    const updated = isPinned ? pinnedIds.filter(p => p !== id) : [...pinnedIds, id];
+    setPinnedIds(updated);
+    try {
+      localStorage.setItem('mywallet_pinned_budgets', JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMoveItem = (groupId: string, id: string, direction: 'left' | 'right', currentIds: string[]) => {
+    const idx = currentIds.indexOf(id);
+    if (idx === -1) return;
+    const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentIds.length) return;
+
+    const newOrder = [...currentIds];
+    const [moved] = newOrder.splice(idx, 1);
+    newOrder.splice(targetIdx, 0, moved);
+
+    const updatedOrders = { ...customOrders, [groupId]: newOrder };
+    setCustomOrders(updatedOrders);
+    setSortByMode('custom');
+    try {
+      localStorage.setItem('mywallet_budget_orders', JSON.stringify(updatedOrders));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -368,17 +418,46 @@ export default function BudgetPage() {
       return null;
     }
 
-    const items = safeList.map(bp => {
+    const groupId = periodId || 'standalone';
+    const savedOrder = customOrders[groupId] || [];
+
+    let items = safeList.map(bp => {
       const category = getCategoryById(bp.categoryId);
       const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
       const limitUSD = convertCurrency(bp.limit, bp.currency || 'USD', 'USD');
+      const isPinned = pinnedIds.includes(bp.id);
       return {
         ...bp,
         category,
         spentAmount,
         limitUSD,
+        isPinned,
       };
     });
+
+    // Apply sorting
+    if (sortByMode === 'limit') {
+      items.sort((a, b) => b.limitUSD - a.limitUSD);
+    } else if (sortByMode === 'spent') {
+      items.sort((a, b) => b.spentAmount - a.spentAmount);
+    } else if (sortByMode === 'name') {
+      items.sort((a, b) => (a.category?.name || '').localeCompare(b.category?.name || ''));
+    } else {
+      // Custom order
+      items.sort((a, b) => {
+        const idxA = savedOrder.indexOf(a.id);
+        const idxB = savedOrder.indexOf(b.id);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return 0;
+      });
+    }
+
+    // Pinned items stay on top
+    items.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+
+    const itemIds = items.map(i => i.id);
 
     const totalUSD = items.reduce((sum, item) => sum + item.limitUSD, 0) || 1;
     const maxUSD = Math.max(...items.map(item => item.limitUSD), 1);
@@ -391,7 +470,7 @@ export default function BudgetPage() {
 
     return (
       <div className={containerClasses}>
-        {items.map(bp => {
+        {items.map((bp, index) => {
           const percent = bp.limit > 0 ? (bp.spentAmount / bp.limit) * 100 : 0;
           const delta = bp.limit - bp.spentAmount;
           const isOver = delta < 0;
@@ -433,7 +512,7 @@ export default function BudgetPage() {
                 <Card
                   className={`relative overflow-hidden group cursor-pointer hover:shadow-lg transition-all duration-300 flex flex-col justify-between ${
                     periodStatus === 'DRAFT' ? 'opacity-80 border-dashed' : ''
-                  }`}
+                  } ${bp.isPinned ? 'ring-1 ring-amber-400/50 dark:ring-amber-500/40 shadow-sm' : ''}`}
                   style={cardStyle}
                   onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
                 >
@@ -445,7 +524,13 @@ export default function BudgetPage() {
                   <CardContent className="pt-4 pb-3 px-4 flex flex-col justify-between h-full space-y-3">
                     <div className="flex justify-between items-start gap-2">
                       <div className="space-y-0.5 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {bp.isPinned && (
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 text-[10px] px-1.5 py-0 flex items-center gap-1 font-semibold">
+                              <Pin className="h-2.5 w-2.5 fill-amber-600" />
+                              {t('budget.pinned')}
+                            </Badge>
+                          )}
                           <h4 className={`font-bold tracking-tight truncate text-gray-900 dark:text-gray-100 ${titleSize}`}>
                             {bp.category?.name || 'Category'}
                           </h4>
@@ -460,8 +545,47 @@ export default function BudgetPage() {
                         </p>
                       </div>
 
+                      {/* Card Action Controls (Pin, Move Left/Right, Edit, Delete) */}
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                        <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5">
+                        <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5 items-center">
+                          {/* Pin Toggle */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={bp.isPinned ? t('budget.unpin') : t('budget.pin')}
+                            className={`h-7 w-7 rounded-full transition-colors ${
+                              bp.isPinned ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
+                            }`}
+                            onClick={(e) => { e.stopPropagation(); handleTogglePin(bp.id); }}
+                          >
+                            <Pin className={`h-3.5 w-3.5 ${bp.isPinned ? 'fill-amber-500' : ''}`} />
+                          </Button>
+
+                          {/* Move Backward */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('budget.moveLeft')}
+                            disabled={index === 0}
+                            className="h-7 w-7 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors disabled:opacity-30"
+                            onClick={(e) => { e.stopPropagation(); handleMoveItem(groupId, bp.id, 'left', itemIds); }}
+                          >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                          </Button>
+
+                          {/* Move Forward */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('budget.moveRight')}
+                            disabled={index === items.length - 1}
+                            className="h-7 w-7 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors disabled:opacity-30"
+                            onClick={(e) => { e.stopPropagation(); handleMoveItem(groupId, bp.id, 'right', itemIds); }}
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </Button>
+
+                          {/* Edit */}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -470,6 +594,8 @@ export default function BudgetPage() {
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
+
+                          {/* Delete */}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -569,32 +695,48 @@ export default function BudgetPage() {
           <h1 className="text-3xl font-bold">{t('budget.title')}</h1>
           <p className="text-gray-600">{t('budget.subtitle')}</p>
           <div className="flex flex-wrap items-center gap-2 mt-2 justify-between">
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                onClick={() => setViewMode('proportional')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'proportional'
-                    ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-900 dark:text-indigo-400 font-bold'
-                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <PieChart className="h-3.5 w-3.5" />
-                {t('budget.proportionalView')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-900 dark:text-indigo-400 font-bold'
-                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                {t('budget.gridView')}
-              </button>
+            {/* View Mode & Sort Selector Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('proportional')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'proportional'
+                      ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-900 dark:text-indigo-400 font-bold'
+                      : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <PieChart className="h-3.5 w-3.5" />
+                  {t('budget.proportionalView')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-900 dark:text-indigo-400 font-bold'
+                      : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  {t('budget.gridView')}
+                </button>
+              </div>
+
+              {/* Sort selector */}
+              <Select value={sortByMode} onValueChange={(v: any) => setSortByMode(v)}>
+                <SelectTrigger className="w-[170px] h-9 text-xs">
+                  <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-gray-500" />
+                  <SelectValue placeholder={t('budget.sortBy')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">{t('budget.sortCustom')}</SelectItem>
+                  <SelectItem value="limit">{t('budget.sortLimit')}</SelectItem>
+                  <SelectItem value="spent">{t('budget.sortSpent')}</SelectItem>
+                  <SelectItem value="name">{t('budget.sortName')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
