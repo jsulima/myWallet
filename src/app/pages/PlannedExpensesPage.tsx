@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit2, Calendar, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, Edit2, Calendar, Trash2, CheckCircle2, Clock, Zap } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
@@ -15,13 +15,15 @@ import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
 export default function PlannedExpensesPage() {
   const { t } = useTranslation();
-  const { plannedExpenses, addPlannedExpense, updatePlannedExpense, deletePlannedExpense, categories, transactions, walletSummary } = useApp();
+  const { plannedExpenses, addPlannedExpense, updatePlannedExpense, deletePlannedExpense, categories, transactions, wallets, walletSummary, addTransaction } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPayDialogOpen, setIsPayDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [payingExpense, setPayingExpense] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const defaultFormData = {
     name: '',
     expectedAmount: '',
@@ -30,8 +32,16 @@ export default function PlannedExpensesPage() {
     dueDay: '',
     frequency: 'MONTHLY',
   };
-  
+
   const [formData, setFormData] = useState(defaultFormData);
+
+  // Pay Now form state
+  const [payForm, setPayForm] = useState({
+    walletId: '',
+    amount: '',
+    description: '',
+    date: new Date().toISOString().slice(0, 10),
+  });
 
   const handleOpenEdit = (expense: any) => {
     setEditingId(expense.id);
@@ -52,13 +62,24 @@ export default function PlannedExpensesPage() {
     setIsOpen(true);
   };
 
+  const handleOpenPay = (expense: any) => {
+    setPayingExpense(expense);
+    setPayForm({
+      walletId: wallets[0]?.id || '',
+      amount: expense.expectedAmount.toString(),
+      description: expense.name,
+      date: new Date().toISOString().slice(0, 10),
+    });
+    setIsPayDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.categoryId) {
       toast.error('Please select a category');
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
@@ -87,6 +108,31 @@ export default function PlannedExpensesPage() {
     }
   };
 
+  const handlePayNow = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payingExpense || !payForm.walletId || !payForm.amount) return;
+
+    setIsLoading(true);
+    try {
+      await addTransaction({
+        walletId: payForm.walletId,
+        categoryId: payingExpense.categoryId,
+        type: 'EXPENSE',
+        amount: parseFloat(payForm.amount),
+        description: payForm.description || payingExpense.name,
+        date: new Date(payForm.date).toISOString(),
+        plannedExpenseId: payingExpense.id,
+      });
+      toast.success(`"${payingExpense.name}" marked as paid!`);
+      setIsPayDialogOpen(false);
+      setPayingExpense(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to record payment');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deletingId) return;
     setIsLoading(true);
@@ -109,9 +155,8 @@ export default function PlannedExpensesPage() {
     const end = endOfMonth(now);
 
     return plannedExpenses.map(expense => {
-      // Find transactions linked to this expense in the current month
-      const linkedTransactions = transactions.filter(t => 
-        t.plannedExpenseId === expense.id && 
+      const linkedTransactions = transactions.filter(t =>
+        t.plannedExpenseId === expense.id &&
         isWithinInterval(new Date(t.date), { start, end })
       );
 
@@ -156,7 +201,7 @@ export default function PlannedExpensesPage() {
                          {category?.name || 'No Category'}
                        </p>
                      </div>
-                     <div className="flex gap-2">
+                     <div className="flex gap-1">
                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(expense)}>
                          <Edit2 className="h-4 w-4" />
                        </Button>
@@ -186,7 +231,7 @@ export default function PlannedExpensesPage() {
                        )}
                      </div>
 
-                     <div className="pt-3 border-t">
+                     <div className="pt-3 border-t flex flex-col gap-3">
                        {expense.isPaid ? (
                          <div className="flex items-center justify-between text-green-600">
                            <div className="flex items-center gap-2">
@@ -203,13 +248,24 @@ export default function PlannedExpensesPage() {
                            <span className="font-medium">Pending this month</span>
                          </div>
                        )}
+
+                       {/* Pay Now button — always visible */}
+                       <Button
+                         size="sm"
+                         variant={expense.isPaid ? 'outline' : 'default'}
+                         className="w-full"
+                         onClick={() => handleOpenPay(expense)}
+                       >
+                         <Zap className="h-4 w-4 mr-2" />
+                         {expense.isPaid ? 'Record Another Payment' : 'Pay Now'}
+                       </Button>
                      </div>
                    </div>
                  </CardContent>
                </Card>
              );
           })}
-          
+
           {billsStatus.length === 0 && (
              <div className="col-span-full py-12 text-center bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed">
                <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
@@ -224,6 +280,7 @@ export default function PlannedExpensesPage() {
           )}
         </div>
 
+        {/* Add / Edit Dialog */}
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogContent>
             <DialogHeader>
@@ -235,7 +292,7 @@ export default function PlannedExpensesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Name</Label>
-                <Input 
+                <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Electricity Bill"
@@ -245,7 +302,7 @@ export default function PlannedExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Expected Amount</Label>
-                  <Input 
+                  <Input
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -271,7 +328,7 @@ export default function PlannedExpensesPage() {
                   </Select>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Select
@@ -297,7 +354,7 @@ export default function PlannedExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Expected Due Day (1-31)</Label>
-                  <Input 
+                  <Input
                     type="number"
                     min="1"
                     max="31"
@@ -336,6 +393,87 @@ export default function PlannedExpensesPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Pay Now Dialog */}
+        <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-indigo-500" />
+                Pay: {payingExpense?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Record an actual payment for this planned expense. It will be linked automatically.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handlePayNow} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Wallet</Label>
+                <Select
+                  value={payForm.walletId}
+                  onValueChange={(value) => setPayForm({ ...payForm, walletId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select wallet..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets.map(w => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name} ({w.currency} {formatAmount(w.balance, w.currency)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Actual Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={payForm.amount}
+                  onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
+                  required
+                />
+                {payingExpense && (
+                  <p className="text-xs text-gray-500">
+                    Expected: {formatAmount(payingExpense.expectedAmount, payingExpense.currency)}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={payForm.date}
+                  onChange={(e) => setPayForm({ ...payForm, date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Input
+                  value={payForm.description}
+                  onChange={(e) => setPayForm({ ...payForm, description: e.target.value })}
+                  placeholder={payingExpense?.name}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsPayDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading || !payForm.walletId}>
+                  {isLoading ? 'Processing...' : 'Record Payment'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <DialogContent>
             <DialogHeader>
