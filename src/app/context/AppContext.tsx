@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import {
   authApi, walletApi, categoryApi, transactionApi,
   budgetApi, budgetPeriodApi, savingApi, creditApi,
-  subscriptionApi, currencyApi,
+  subscriptionApi, currencyApi, plannedExpenseApi,
   setToken, clearToken,
 } from '../services/api';
 import i18n from '../i18n/config';
