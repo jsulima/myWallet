@@ -8,6 +8,7 @@ import {
   CreditCard, 
   Calendar,
   RefreshCcw,
+  CalendarClock,
   Archive,
   LogOut
 } from 'lucide-react';
@@ -38,6 +39,7 @@ export default function Layout({ children }: LayoutProps) {
     { to: '/credits', icon: CreditCard, label: t('nav.credits') },
     { to: '/budget', icon: Calendar, label: t('nav.budget') },
     { to: '/subscriptions', icon: RefreshCcw, label: t('nav.subscriptions') },
+    { to: '/planned-expenses', icon: CalendarClock, label: t('nav.plannedExpenses') },
     { to: '/archive', icon: Archive, label: t('nav.archive') },
   ];
 
