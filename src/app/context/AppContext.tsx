@@ -43,8 +43,10 @@ export interface Transaction {
   targetAmount?: number;
   description: string;
   date: string;
-  createdAt: string;
+  creditId?: string;
   subscriptionId?: string;
+  plannedExpenseId?: string;
+  createdAt: string;
   category?: Category;
   wallet?: Wallet;
   targetWallet?: Wallet;
@@ -111,6 +113,17 @@ export interface Subscription {
   wallet?: Wallet;
 }
 
+export interface PlannedExpense {
+  id: string;
+  name: string;
+  expectedAmount: number;
+  currency: string;
+  categoryId: string;
+  dueDay?: number | null;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  category?: Category;
+}
+
 export interface CurrencyRate {
   from: string;
   to: string;
@@ -146,6 +159,7 @@ interface AppContextType {
     date?: string;
     targetWalletId?: string;
     targetAmount?: number;
+    plannedExpenseId?: string;
   }) => Promise<void>;
   updateTransaction: (id: string, transaction: { 
     walletId: string; 
@@ -156,6 +170,7 @@ interface AppContextType {
     date?: string;
     targetWalletId?: string;
     targetAmount?: number;
+    plannedExpenseId?: string;
   }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   transferMoney: (data: {
@@ -201,6 +216,17 @@ interface AppContextType {
   updateSubscription: (id: string, subscription: Partial<Subscription>) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
   paySubscription: (id: string) => Promise<void>;
+  plannedExpenses: PlannedExpense[];
+  addPlannedExpense: (expense: {
+    name: string;
+    expectedAmount: number;
+    currency?: string;
+    categoryId: string;
+    dueDay?: number | null;
+    frequency?: string;
+  }) => Promise<void>;
+  updatePlannedExpense: (id: string, expense: Partial<PlannedExpense>) => Promise<void>;
+  deletePlannedExpense: (id: string) => Promise<void>;
   reorderWallets: (walletIds: string[]) => Promise<void>;
   deleteWallet: (id: string) => Promise<void>;
   updateCredit: (id: string, credit: Partial<Credit>) => Promise<void>;
@@ -222,12 +248,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [budgetPlans, setBudgetPlans] = useState<BudgetPlan[]>([]);
   const [budgetPeriods, setBudgetPeriods] = useState<BudgetPeriod[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [plannedExpenses, setPlannedExpenses] = useState<PlannedExpense[]>([]);
   const [rates, setRates] = useState<CurrencyRate[]>([]);
   const [walletSummary, setWalletSummary] = useState<WalletSummary | null>(null);
 
   const fetchAllData = useCallback(async () => {
     try {
-      const [w, c, t, s, cr, b, bp, sub, summary, r] = await Promise.all([
+      const [w, c, t, s, cr, b, bp, sub, pe, summary, r] = await Promise.all([
         walletApi.getAll(),
         categoryApi.getAll(),
         transactionApi.getAll(),
@@ -236,6 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         budgetApi.getAll(),
         budgetPeriodApi.getAll(),
         subscriptionApi.getAll(),
+        plannedExpenseApi.getAll(),
         walletApi.getSummary(),
         currencyApi.getRates(),
       ]);
@@ -247,6 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBudgetPlans(b);
       setBudgetPeriods(bp);
       setSubscriptions(sub);
+      setPlannedExpenses(pe);
       setWalletSummary(summary);
       setRates(r);
     } catch (error) {
@@ -306,6 +335,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBudgetPlans([]);
     setBudgetPeriods([]);
     setSubscriptions([]);
+    setPlannedExpenses([]);
   };
 
   const updateLanguage = async (language: string) => {
@@ -544,6 +574,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchAllData();
   };
 
+  const addPlannedExpense = async (expense: {
+    name: string;
+    expectedAmount: number;
+    currency?: string;
+    categoryId: string;
+    dueDay?: number | null;
+    frequency?: string;
+  }) => {
+    const created = await plannedExpenseApi.create(expense);
+    setPlannedExpenses(prev => [...prev, created]);
+  };
+
+  const updatePlannedExpense = async (id: string, expense: Partial<PlannedExpense>) => {
+    const updated = await plannedExpenseApi.update(id, expense);
+    setPlannedExpenses(prev => prev.map(pe => pe.id === id ? updated : pe));
+  };
+
+  const deletePlannedExpense = async (id: string) => {
+    await plannedExpenseApi.delete(id);
+    setPlannedExpenses(prev => prev.filter(pe => pe.id !== id));
+  };
+
   const reorderWallets = async (walletIds: string[]) => {
     // Optimistically update the order in local state
     const currentWallets = [...wallets];
@@ -607,6 +659,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateSubscription,
         deleteSubscription,
         paySubscription,
+        plannedExpenses,
+        addPlannedExpense,
+        updatePlannedExpense,
+        deletePlannedExpense,
         reorderWallets,
         deleteWallet,
         updateCredit,

@@ -22,6 +22,7 @@ import {
   ReferenceLine,
   Legend
 } from 'recharts';
+import { CalendarDays } from 'lucide-react';
 import { Skeleton } from '../components/ui/skeleton';
 
 export default function ArchivePage() {
@@ -622,6 +623,49 @@ export default function ArchivePage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Planned Expenses Analysis */}
+                {(analytics?.plannedExpenses?.length || 0) > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-purple-500" />
+                        Planned Expenses Analytics
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {analytics.plannedExpenses.map((pe: any) => {
+                          const deltaSpent = pe.prevSpent !== null ? pe.currentSpent - pe.prevSpent : 0;
+                          return (
+                            <div key={pe.id} className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                              <h4 className="font-semibold text-gray-900 mb-2">{pe.name}</h4>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-end">
+                                  <span className="text-xs text-gray-500">Spent</span>
+                                  <span className="font-bold text-lg">${formatAmount(pe.currentSpent)}</span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <span className="text-xs text-gray-500">Transactions</span>
+                                  <span className="font-medium text-sm">{pe.currentCount}</span>
+                                </div>
+                                {pe.prevSpent !== null && (
+                                  <div className="pt-2 border-t mt-2 flex justify-between items-center text-xs">
+                                    <span className="text-gray-500">vs Previous</span>
+                                    <span className={`font-bold flex items-center gap-1 ${deltaSpent > 0 ? 'text-red-500' : deltaSpent < 0 ? 'text-green-500' : 'text-gray-500'}`}>
+                                      {deltaSpent > 0 ? <TrendingUp className="h-3 w-3" /> : deltaSpent < 0 ? <TrendingDown className="h-3 w-3" /> : null}
+                                      {deltaSpent > 0 ? '+' : ''}${formatAmount(deltaSpent)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
             </div>

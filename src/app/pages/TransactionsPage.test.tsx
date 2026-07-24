@@ -49,6 +49,7 @@ describe('TransactionsPage', () => {
       transactions: mockTransactions,
       addTransaction: vi.fn(),
       deleteTransaction: vi.fn(),
+      plannedExpenses: [],
     });
 
     render(
@@ -73,6 +74,7 @@ describe('TransactionsPage', () => {
       transactions: mockTransactions,
       addTransaction: vi.fn(),
       deleteTransaction: vi.fn(),
+      plannedExpenses: [],
     });
 
     render(
@@ -120,6 +122,7 @@ describe('TransactionsPage', () => {
       transactions: transactions,
       addTransaction: vi.fn(),
       deleteTransaction: vi.fn(),
+      plannedExpenses: [],
     });
 
     render(

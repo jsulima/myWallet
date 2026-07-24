@@ -11,6 +11,7 @@ import CreditsPage from './pages/CreditsPage';
 import BudgetPage from './pages/BudgetPage';
 import SubscriptionsPage from '@/app/pages/SubscriptionsPage';
 import ArchivePage from './pages/ArchivePage';
+import PlannedExpensesPage from './pages/PlannedExpensesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -61,5 +62,9 @@ export const router = createBrowserRouter([
   {
     path: '/archive',
     element: <ProtectedRoute><ArchivePage /></ProtectedRoute>,
+  },
+  {
+    path: '/planned-expenses',
+    element: <ProtectedRoute><PlannedExpensesPage /></ProtectedRoute>,
   },
 ]);

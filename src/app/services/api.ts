@@ -237,3 +237,21 @@ export const subscriptionApi = {
   delete: (id: string) =>
     request<any>(`/subscriptions/${id}`, { method: 'DELETE' }),
 };
+
+// Planned Expenses
+export const plannedExpenseApi = {
+  getAll: () => request<any[]>('/planned-expenses'),
+  create: (data: {
+    name: string;
+    expectedAmount: number;
+    currency?: string;
+    categoryId: string;
+    dueDay?: number | null;
+    frequency?: string;
+  }) =>
+    request<any>('/planned-expenses', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    request<any>(`/planned-expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<any>(`/planned-expenses/${id}`, { method: 'DELETE' }),
+};

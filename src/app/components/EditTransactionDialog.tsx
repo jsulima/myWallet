@@ -15,7 +15,7 @@ interface EditTransactionDialogProps {
 }
 
 export default function EditTransactionDialog({ transaction, open, onOpenChange }: EditTransactionDialogProps) {
-  const { wallets, categories, updateTransaction } = useApp();
+  const { wallets, categories, updateTransaction, plannedExpenses } = useApp();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     walletId: transaction.walletId,
@@ -26,6 +26,7 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
     targetAmount: transaction.targetAmount?.toString() || '',
     description: transaction.description,
     date: new Date(transaction.date).toISOString().split('T')[0],
+    plannedExpenseId: transaction.plannedExpenseId || 'none',
   });
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
         targetAmount: transaction.targetAmount?.toString() || '',
         description: transaction.description,
         date: new Date(transaction.date).toISOString().split('T')[0],
+        plannedExpenseId: transaction.plannedExpenseId || 'none',
       });
     }
   }, [open, transaction]);
@@ -77,6 +79,7 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
         targetAmount: formData.type === 'TRANSFER' ? parseFloat(formData.targetAmount) : undefined,
         description: formData.description,
         date: new Date(formData.date).toISOString(),
+        plannedExpenseId: formData.plannedExpenseId === 'none' ? undefined : formData.plannedExpenseId,
       });
 
       toast.success('Transaction updated successfully!');
@@ -184,6 +187,25 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
                 />
               </div>
             </>
+          )}
+
+          {formData.type === 'EXPENSE' && (
+            <div>
+              <Label htmlFor="edit-planned-expense">Link to Planned Expense (Optional)</Label>
+              <Select value={formData.plannedExpenseId} onValueChange={(value) => setFormData({ ...formData, plannedExpenseId: value })}>
+                <SelectTrigger id="edit-planned-expense">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {plannedExpenses.map((pe) => (
+                    <SelectItem key={pe.id} value={pe.id}>
+                      {pe.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           <div>

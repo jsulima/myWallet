@@ -28,7 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { formatAmount } from '../components/ui/utils';
 
 export default function TransactionsPage() {
-  const { transactions, wallets, categories, addTransaction, deleteTransaction, budgetPeriods } = useApp();
+  const { transactions, wallets, categories, addTransaction, deleteTransaction, budgetPeriods, plannedExpenses } = useApp();
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
@@ -74,6 +74,7 @@ export default function TransactionsPage() {
     targetAmount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
+    plannedExpenseId: 'none',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,6 +96,7 @@ export default function TransactionsPage() {
         targetAmount: formData.type === 'TRANSFER' ? parseFloat(formData.targetAmount) : undefined,
         description: formData.description,
         date: new Date(formData.date).toISOString(),
+        plannedExpenseId: formData.plannedExpenseId === 'none' ? undefined : formData.plannedExpenseId,
       });
 
       toast.success('Transaction added successfully!');
@@ -378,6 +380,25 @@ export default function TransactionsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {formData.type === 'EXPENSE' && (
+                  <div>
+                    <Label htmlFor="planned-expense">Link to Planned Expense (Optional)</Label>
+                    <Select value={formData.plannedExpenseId} onValueChange={(value) => setFormData({ ...formData, plannedExpenseId: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {plannedExpenses.map((pe) => (
+                          <SelectItem key={pe.id} value={pe.id}>
+                            {pe.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {formData.type === 'TRANSFER' && (
                   <>
