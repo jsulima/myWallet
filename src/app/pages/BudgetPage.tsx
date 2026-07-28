@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid, Pin, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid, Pin, ArrowUpDown, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -583,6 +583,17 @@ export default function BudgetPage() {
                             onClick={(e) => { e.stopPropagation(); handleMoveItem(groupId, bp.id, 'right', itemIds); }}
                           >
                             <ChevronRight className="h-3.5 w-3.5" />
+                          </Button>
+
+                          {/* Analytics */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t('budget.analyticsIcon')}
+                            className="h-7 w-7 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/budget/analytics/${bp.categoryId}`); }}
+                          >
+                            <BarChart2 className="h-3.5 w-3.5" />
                           </Button>
 
                           {/* Edit */}

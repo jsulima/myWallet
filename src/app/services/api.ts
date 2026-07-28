@@ -145,6 +145,8 @@ export const budgetApi = {
     request<any>(`/budgets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<any>(`/budgets/${id}`, { method: 'DELETE' }),
+  getCategoryAnalytics: (categoryId: string) =>
+    request<any>(`/budgets/analytics/${categoryId}`),
 };
 
 // Budget Periods
