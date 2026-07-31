@@ -25,7 +25,7 @@ interface TransferDialogProps {
 }
 
 export default function TransferDialog({ open, onOpenChange }: TransferDialogProps) {
-  const { wallets, categories, transferMoney } = useApp();
+  const { wallets, categories, transferMoney, rates } = useApp();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     sourceWalletId: '',
@@ -38,12 +38,63 @@ export default function TransferDialog({ open, onOpenChange }: TransferDialogPro
   });
 
   const [targetAmount, setTargetAmount] = useState<number>(0);
+  const [currentPair, setCurrentPair] = useState<string>('');
+
+  const sourceWallet = wallets.find(w => w.id === formData.sourceWalletId);
+  const targetWallet = wallets.find(w => w.id === formData.targetWalletId);
+
+  const isUAHSource = sourceWallet?.currency === 'UAH';
+  const isUAHTarget = targetWallet?.currency === 'UAH';
+  
+  let foreignCurrency = '';
+  let baseCurrency = '';
+  let isDivide = false;
+
+  if (isUAHSource) {
+    foreignCurrency = targetWallet?.currency || '';
+    baseCurrency = 'UAH';
+    isDivide = true;
+  } else if (isUAHTarget) {
+    foreignCurrency = sourceWallet?.currency || '';
+    baseCurrency = 'UAH';
+    isDivide = false;
+  } else {
+    foreignCurrency = sourceWallet?.currency || '';
+    baseCurrency = targetWallet?.currency || '';
+    isDivide = false;
+  }
+
+  // Pre-fill exchange rate from Monobank when currency pair changes
+  useEffect(() => {
+    if (sourceWallet && targetWallet && sourceWallet.currency !== targetWallet.currency) {
+      const pair = `${sourceWallet.currency}-${targetWallet.currency}`;
+      if (currentPair !== pair) {
+        setCurrentPair(pair);
+        const rateObj = rates?.find(r => r.from === foreignCurrency && r.to === baseCurrency);
+        if (rateObj) {
+          setFormData(prev => ({ ...prev, exchangeRate: rateObj.rate.toFixed(4) }));
+        } else {
+          setFormData(prev => ({ ...prev, exchangeRate: '1' }));
+        }
+      }
+    } else {
+      setCurrentPair('');
+      if (formData.exchangeRate !== '1') {
+        setFormData(prev => ({ ...prev, exchangeRate: '1' }));
+      }
+    }
+  }, [sourceWallet?.currency, targetWallet?.currency, rates, currentPair, foreignCurrency, baseCurrency, formData.exchangeRate]);
 
   useEffect(() => {
     const source = parseFloat(formData.sourceAmount) || 0;
     const rate = parseFloat(formData.exchangeRate) || 1;
-    setTargetAmount(source * rate);
-  }, [formData.sourceAmount, formData.exchangeRate]);
+    
+    if (isDivide) {
+      setTargetAmount(rate !== 0 ? source / rate : 0);
+    } else {
+      setTargetAmount(source * rate);
+    }
+  }, [formData.sourceAmount, formData.exchangeRate, isDivide]);
 
   // Set default category if none selected and categories exist
   useEffect(() => {
@@ -90,15 +141,13 @@ export default function TransferDialog({ open, onOpenChange }: TransferDialogPro
         description: '',
         date: new Date().toISOString().split('T')[0],
       });
+      setCurrentPair('');
     } catch (error: any) {
       toast.error(error.message || 'Transfer failed');
     } finally {
       setIsLoading(false);
     }
   };
-
-  const sourceWallet = wallets.find(w => w.id === formData.sourceWalletId);
-  const targetWallet = wallets.find(w => w.id === formData.targetWalletId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -165,7 +214,7 @@ export default function TransferDialog({ open, onOpenChange }: TransferDialogPro
           {sourceWallet && targetWallet && sourceWallet.currency !== targetWallet.currency && (
             <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
                <div className="space-y-2">
-                <Label htmlFor="exchangeRate">Exchange Rate (1 {sourceWallet.currency} = ? {targetWallet.currency})</Label>
+                <Label htmlFor="exchangeRate">Exchange Rate (1 {foreignCurrency} = ? {baseCurrency})</Label>
                 <Input
                   id="exchangeRate"
                   type="number"
@@ -179,7 +228,7 @@ export default function TransferDialog({ open, onOpenChange }: TransferDialogPro
               <div className="flex justify-between items-center text-sm font-medium text-blue-800">
                 <span>Target Amount:</span>
                 <span className="text-lg">
-                  {targetWallet.currency === 'USD' ? '$' : '₴'}{targetAmount.toFixed(2)}
+                  {targetWallet.currency === 'USD' ? '$' : targetWallet.currency === 'EUR' ? '€' : '₴'}{targetAmount.toFixed(2)}
                 </span>
               </div>
             </div>
