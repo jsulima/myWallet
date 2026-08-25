@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp, Credit } from '../../context/AppContext';
 import Layout from '../../components/Layout';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,50 +83,97 @@ export default function CreditsPage() {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
+    exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
+  };
+
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold">{t('credits.title')}</h1>
-          <p className="text-gray-600">{t('credits.subtitle')}</p>
-          <div className="flex items-center gap-2 mt-2 justify-end">
-            <Tabs value={viewTab} onValueChange={setViewTab} className="mr-auto">
-              <TabsList>
-                <TabsTrigger value="active">{t('credits.active')}</TabsTrigger>
-                <TabsTrigger value="archived">{t('credits.archived')}</TabsTrigger>
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="space-y-1.5">
+            <h1 className="text-3xl font-black tracking-tight text-gray-900">{t('credits.title')}</h1>
+            <p className="text-gray-500 font-medium">{t('credits.subtitle')}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Tabs value={viewTab} onValueChange={setViewTab} className="w-full md:w-auto">
+              <TabsList className="w-full">
+                <TabsTrigger value="active" className="flex-1">{t('credits.active')}</TabsTrigger>
+                <TabsTrigger value="archived" className="flex-1">{t('credits.archived')}</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button onClick={() => setIsAddOpen(true)}>
+            <Button onClick={() => setIsAddOpen(true)} className="shadow-sm shadow-blue-500/20 transition-all hover:-translate-y-0.5">
               <Plus className="h-4 w-4 mr-2" />
               {t('credits.addCredit')}
             </Button>
           </div>
         </div>
 
-        <CreditSummaryCards />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <CreditSummaryCards />
+        </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {displayedCredits.map((credit) => (
-            <CreditCardItem
-              key={credit.id}
-              credit={credit}
-              onPayClick={(c) => setPayingCredit(c)}
-              onHistoryClick={(id) => setHistoryCreditId(id)}
-              onDeleteClick={(id) => setCreditToDelete(id)}
-              onRestoreClick={(id) => setCreditToRestore(id)}
-              onCloseClick={(id) => setCreditToClose(id)}
-            />
-          ))}
-        </div>
+        <motion.div 
+          className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          <AnimatePresence mode="popLayout">
+            {displayedCredits.map((credit) => (
+              <motion.div
+                key={credit.id}
+                variants={itemVariants}
+                layout
+                initial="hidden"
+                animate="show"
+                exit="exit"
+              >
+                <CreditCardItem
+                  credit={credit}
+                  onPayClick={(c) => setPayingCredit(c)}
+                  onHistoryClick={(id) => setHistoryCreditId(id)}
+                  onDeleteClick={(id) => setCreditToDelete(id)}
+                  onRestoreClick={(id) => setCreditToRestore(id)}
+                  onCloseClick={(id) => setCreditToClose(id)}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
 
         {credits.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 mb-4">{t('credits.noCredits')}</p>
-              <Button onClick={() => setIsAddOpen(true)}>{t('credits.addFirst')}</Button>
-            </CardContent>
-          </Card>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+            <Card className="border-dashed border-2 shadow-sm bg-gray-50/50">
+              <CardContent className="py-16 text-center">
+                <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <CreditCard className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">No credits yet</h3>
+                <p className="text-gray-500 mb-6">{t('credits.noCredits')}</p>
+                <Button onClick={() => setIsAddOpen(true)} className="shadow-sm shadow-blue-500/20 hover:-translate-y-0.5 transition-all">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('credits.addFirst')}
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         <AddCreditModal isOpen={isAddOpen} onOpenChange={setIsAddOpen} />
@@ -161,7 +209,7 @@ export default function CreditsPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmCloseCredit} className="bg-indigo-600 hover:bg-indigo-700">{t('common.confirm')}</AlertDialogAction>
+              <AlertDialogAction onClick={confirmCloseCredit} className="bg-emerald-600 hover:bg-emerald-700">{t('common.confirm')}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -177,7 +225,7 @@ export default function CreditsPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmRestoreCredit} className="bg-indigo-600 hover:bg-indigo-700">{t('common.confirm')}</AlertDialogAction>
+              <AlertDialogAction onClick={confirmRestoreCredit} className="bg-blue-600 hover:bg-blue-700">{t('common.confirm')}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
