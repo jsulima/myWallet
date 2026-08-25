@@ -73,6 +73,17 @@ export interface Credit {
   dueDate: string;
   status: 'ACTIVE' | 'CLOSED';
   commission: number;
+  paidPercentage?: number;
+  isOverdue?: boolean;
+  isClosed?: boolean;
+  interestAmount?: number;
+  estimatedPayoffMonths?: number;
+}
+
+export interface CreditSummary {
+  activeCount: number;
+  debtByCurrency: Record<string, number>;
+  monthlyByCurrency: Record<string, number>;
 }
 
 export interface BudgetPlan {
@@ -233,6 +244,7 @@ interface AppContextType {
   refreshData: () => Promise<void>;
   rates: CurrencyRate[];
   walletSummary: WalletSummary | null;
+  creditSummary: CreditSummary | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -251,10 +263,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [plannedExpenses, setPlannedExpenses] = useState<PlannedExpense[]>([]);
   const [rates, setRates] = useState<CurrencyRate[]>([]);
   const [walletSummary, setWalletSummary] = useState<WalletSummary | null>(null);
+  const [creditSummary, setCreditSummary] = useState<CreditSummary | null>(null);
 
   const fetchAllData = useCallback(async () => {
     try {
-      const [w, c, t, s, cr, b, bp, sub, pe, summary, r] = await Promise.all([
+      const [w, c, t, s, cr, b, bp, sub, pe, summary, r, creditSum] = await Promise.all([
         walletApi.getAll(),
         categoryApi.getAll(),
         transactionApi.getAll(),
@@ -266,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         plannedExpenseApi.getAll(),
         walletApi.getSummary(),
         currencyApi.getRates(),
+        creditApi.getSummary(),
       ]);
       setWallets(w);
       setCategories(c);
@@ -278,6 +292,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setPlannedExpenses(pe);
       setWalletSummary(summary);
       setRates(r);
+      setCreditSummary(creditSum);
     } catch (error) {
       console.error('Fetch All Data Error:', error);
     }
@@ -669,6 +684,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         refreshData: fetchAllData,
         rates,
         walletSummary,
+        creditSummary,
       }}
     >
       {children}

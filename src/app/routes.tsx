@@ -7,7 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import SavingsPage from './pages/SavingsPage';
-import CreditsPage from './pages/CreditsPage';
+import CreditsPage from './pages/Credits/CreditsPage';
 import BudgetPage from './pages/BudgetPage';
 import SubscriptionsPage from '@/app/pages/SubscriptionsPage';
 import ArchivePage from './pages/ArchivePage';

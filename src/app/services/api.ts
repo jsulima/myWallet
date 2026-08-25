@@ -177,6 +177,7 @@ export const savingApi = {
 
 // Credits
 export const creditApi = {
+  getSummary: () => request<{ activeCount: number; debtByCurrency: Record<string, number>; monthlyByCurrency: Record<string, number> }>('/credits/summary'),
   getAll: () => request<any[]>('/credits'),
   create: (data: {
     name: string;
