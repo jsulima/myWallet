@@ -12,9 +12,10 @@ interface EditTransactionDialogProps {
   transaction: Transaction;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: () => void;
 }
 
-export default function EditTransactionDialog({ transaction, open, onOpenChange }: EditTransactionDialogProps) {
+export default function EditTransactionDialog({ transaction, open, onOpenChange, onCloseAutoFocus }: EditTransactionDialogProps) {
   const { wallets, categories, updateTransaction, plannedExpenses } = useApp();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -93,7 +94,12 @@ export default function EditTransactionDialog({ transaction, open, onOpenChange 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          onCloseAutoFocus?.();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Edit Transaction</DialogTitle>
           <DialogDescription>
