@@ -341,7 +341,7 @@ export default function DashboardPage() {
                       {budgetData.map((entry, index) => (
                         <Cell 
                           key={`cell-${index}`} 
-                          fill={entry.percentageRaw > 100 ? '#ef4444' : entry.fill} 
+                          fill={entry.fill} 
                         />
                       ))}
                     </Bar>

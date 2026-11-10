@@ -19,12 +19,13 @@ vi.mock('../services/api', () => ({
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
   BarChart: ({ children }: any) => <div>{children}</div>,
-  Bar: () => <div />,
+  Bar: ({ children }: any) => <div data-testid="budget-bar">{children}</div>,
   XAxis: () => <div />,
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
   Tooltip: () => <div />,
-  Cell: () => <div />,
+  Cell: ({ fill, ...props }: any) => <div data-testid="budget-cell" data-fill={fill} {...props} />,
+  ReferenceLine: () => <div />,
 }));
 
 describe('DashboardPage', () => {
@@ -54,5 +55,62 @@ describe('DashboardPage', () => {
 
     const bankWalletLink = screen.getByText('Bank').closest('a');
     expect(bankWalletLink).toHaveAttribute('href', '/transactions?walletId=wallet-2');
+  });
+
+  it('preserves original category color in budget usage chart even when budget is overused (>100%)', () => {
+    const mockWallets = [
+      { id: 'wallet-1', name: 'Cash', balance: 1000, currency: 'USD' },
+    ];
+    const mockCategories = [
+      { id: 'cat-1', name: 'Health/medical', color: '#10b981', icon: 'Heart', type: 'EXPENSE' },
+    ];
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+    const txDate = new Date(now.getFullYear(), now.getMonth(), 15).toISOString();
+
+    const mockBudgetPlans = [
+      {
+        id: 'bp-1',
+        categoryId: 'cat-1',
+        limit: 100,
+        status: 'ACTIVE',
+        startDate,
+        endDate,
+      },
+    ];
+
+    const mockTransactions = [
+      {
+        id: 'tx-1',
+        walletId: 'wallet-1',
+        categoryId: 'cat-1',
+        amount: 250, // 250% overusage!
+        type: 'EXPENSE',
+        date: txDate,
+      },
+    ];
+
+    (useApp as any).mockReturnValue({
+      user: { name: 'Test User' },
+      wallets: mockWallets,
+      transactions: mockTransactions,
+      savingPlaces: [],
+      categories: mockCategories,
+      budgetPlans: mockBudgetPlans,
+      budgetPeriods: [],
+      fetchPeriodAnalytics: vi.fn().mockResolvedValue(null),
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    const cells = screen.getAllByTestId('budget-cell');
+    expect(cells.length).toBeGreaterThan(0);
+    // Should retain original color #10b981, not be overridden to #ef4444
+    expect(cells[0]).toHaveAttribute('data-fill', '#10b981');
   });
 });
