@@ -284,6 +284,43 @@ export default function TransactionsPage() {
     });
   }, [transactions, selectedWalletId, selectedCategoryId, startDate, endDate]);
 
+  // Detect if any filter is active
+  const isAnyFilterActive = useMemo(
+    () =>
+      selectedWalletId !== 'all' ||
+      selectedCategoryId !== 'all' ||
+      !!startDate ||
+      !!endDate ||
+      selectedPeriodId !== 'all',
+    [selectedWalletId, selectedCategoryId, startDate, endDate, selectedPeriodId]
+  );
+
+  // Compute totals per currency for filtered non-transfer transactions (shown only when filter is active)
+  const filteredTotals = useMemo(() => {
+    if (!isAnyFilterActive) return null;
+
+    const byCurrency: Record<string, { income: number; expense: number }> = {};
+
+    for (const t of filteredTransactions) {
+      if (t.type === 'TRANSFER') continue;
+      const wallet = walletsMap.get(t.walletId);
+      const cur = wallet?.currency || 'USD';
+      if (!byCurrency[cur]) byCurrency[cur] = { income: 0, expense: 0 };
+      if (t.type === 'INCOME') byCurrency[cur].income += t.amount;
+      else byCurrency[cur].expense += t.amount;
+    }
+
+    return byCurrency;
+  }, [isAnyFilterActive, filteredTransactions, walletsMap]);
+
+  // Helper: currency symbol
+  const getCurrencySymbol = (cur: string) => {
+    if (cur === 'USD') return '$';
+    if (cur === 'UAH') return '₴';
+    if (cur === 'EUR') return '€';
+    return cur;
+  };
+
   // Memoized sort and type categorization in a single pass
   const { sortedTransactions, incomeTransactions, expenseTransactions, transferTransactions } = useMemo(() => {
     const sorted = [...filteredTransactions].sort((a, b) => {
@@ -489,6 +526,32 @@ export default function TransactionsPage() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* Filtered totals summary — shown only when any filter is active */}
+          {filteredTotals && (
+            <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1 pl-2">
+              {Object.entries(filteredTotals).map(([cur, totals]) => {
+                const sym = getCurrencySymbol(cur);
+                return (
+                  <div key={cur} className="flex flex-col items-end leading-tight">
+                    {totals.income > 0 && (
+                      <span className="text-xs font-semibold text-green-600">
+                        +{sym}{formatAmount(totals.income)}
+                      </span>
+                    )}
+                    {totals.expense > 0 && (
+                      <span className="text-xs font-semibold text-red-500">
+                        -{sym}{formatAmount(totals.expense)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              <span className="text-xs text-gray-400">
+                {filteredTransactions.length} {t('transactions.transactions', { defaultValue: 'transactions' })}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Transactions Tabs & List */}
