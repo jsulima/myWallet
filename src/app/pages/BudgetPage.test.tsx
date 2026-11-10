@@ -75,6 +75,7 @@ describe('BudgetPage Lifecycle Actions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (window.scrollTo as any)?.mockClear?.();
     i18n.changeLanguage('en');
   });
 
@@ -166,5 +167,71 @@ describe('BudgetPage Lifecycle Actions', () => {
       
       expect(mockApp.deleteBudgetPlan).toHaveBeenCalledWith('bp-2');
     }
+  });
+
+  it('opens budget edit dialog and calls updateBudgetPlan preserving scroll position', async () => {
+    (useApp as any).mockReturnValue(mockApp);
+    
+    // Set scroll position before edit
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(650);
+    const scrollToSpy = vi.spyOn(window, 'scrollTo');
+
+    render(
+      <MemoryRouter>
+        <BudgetPage />
+      </MemoryRouter>
+    );
+
+    // Find the edit button on the first card
+    const editBtns = screen.getAllByLabelText('edit-budget');
+    expect(editBtns.length).toBeGreaterThan(0);
+
+    // Set scroll position before clicking edit
+    Object.defineProperty(window, 'scrollY', { value: 650, writable: true, configurable: true });
+
+    fireEvent.click(editBtns[0]);
+
+    // Check dialog opens with title
+    await waitFor(() => {
+      expect(screen.getByText('Edit Budget Plan')).toBeInTheDocument();
+    });
+
+    // Update limit input
+    const limitInput = document.getElementById('budget-plan-limit') as HTMLInputElement;
+    expect(limitInput).toBeTruthy();
+    fireEvent.change(limitInput, { target: { value: '250' } });
+
+    // Click submit
+    const submitBtn = screen.getByText('Update Budget');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockApp.updateBudgetPlan).toHaveBeenCalledWith('bp-1', expect.objectContaining({
+        limit: 250,
+      }));
+    });
+
+    // Verify scrollTo was called to maintain scroll position
+    expect(scrollToSpy).toHaveBeenCalledWith(expect.objectContaining({
+      top: 650,
+      behavior: 'instant',
+    }));
+  });
+
+  it('switches between proportional and grid views without throwing', () => {
+    (useApp as any).mockReturnValue(mockApp);
+    render(
+      <MemoryRouter>
+        <BudgetPage />
+      </MemoryRouter>
+    );
+
+    const gridBtn = screen.getByText('Grid View');
+    fireEvent.click(gridBtn);
+    expect(gridBtn).toBeInTheDocument();
+
+    const propBtn = screen.getByText('Proportional Tiles');
+    fireEvent.click(propBtn);
+    expect(propBtn).toBeInTheDocument();
   });
 });

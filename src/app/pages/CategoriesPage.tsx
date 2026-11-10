@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Plus, Tag, Edit2, Home, ShoppingCart, Coffee, Car, FileText, Zap, Utensils, Monitor, Heart, Briefcase } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -26,6 +26,35 @@ export default function CategoriesPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Exact scroll & focus retention refs
+  const savedScrollYRef = useRef<number>(0);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
+
+  const saveScrollPosition = useCallback((triggerEl?: HTMLElement | null) => {
+    savedScrollYRef.current = window.scrollY || document.documentElement.scrollTop || 0;
+    if (triggerEl) {
+      triggerElementRef.current = triggerEl;
+    }
+  }, []);
+
+  const restoreScrollAndFocus = useCallback(() => {
+    const targetY = savedScrollYRef.current;
+    const targetEl = triggerElementRef.current;
+
+    if (targetEl && typeof targetEl.focus === 'function') {
+      targetEl.focus({ preventScroll: true });
+    }
+
+    window.scrollTo({ top: targetY, behavior: 'instant' });
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: 'instant' });
+      if (targetEl && typeof targetEl.focus === 'function') {
+        targetEl.focus({ preventScroll: true });
+      }
+    });
+  }, []);
   
   const defaultFormData = {
     name: '',
@@ -36,7 +65,19 @@ export default function CategoriesPage() {
   
   const [formData, setFormData] = useState(defaultFormData);
 
-  const handleOpenEdit = (category: any) => {
+  // Precompute transaction count map in O(N) instead of scanning transactions per card
+  const categoryTxCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of transactions) {
+      if (t.categoryId) {
+        map.set(t.categoryId, (map.get(t.categoryId) || 0) + 1);
+      }
+    }
+    return map;
+  }, [transactions]);
+
+  const handleOpenEdit = (category: any, e: React.MouseEvent<HTMLElement>) => {
+    saveScrollPosition(e.currentTarget);
     setEditingCategoryId(category.id);
     setFormData({
       name: category.name,
@@ -47,7 +88,8 @@ export default function CategoriesPage() {
     setIsOpen(true);
   };
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = (e: React.MouseEvent<HTMLElement>) => {
+    saveScrollPosition(e.currentTarget);
     setEditingCategoryId(null);
     setFormData(defaultFormData);
     setIsOpen(true);
@@ -76,16 +118,13 @@ export default function CategoriesPage() {
         toast.success(t('categories.successCreate'));
       }
       setIsOpen(false);
+      setEditingCategoryId(null);
       setFormData(defaultFormData);
     } catch (error: any) {
       toast.error(error.message || (editingCategoryId ? t('categories.failSave') : t('categories.failCreate')));
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getCategoryTransactionCount = (categoryId: string) => {
-    return transactions.filter(t => t.categoryId === categoryId).length;
   };
 
   return (
@@ -95,7 +134,7 @@ export default function CategoriesPage() {
           <h1 className="text-3xl font-bold">{t('categories.title')}</h1>
           <p className="text-gray-600">{t('categories.subtitle')}</p>
           <div className="flex items-center gap-2 mt-2 justify-end">
-            <Button onClick={handleOpenAdd}>
+            <Button type="button" onClick={handleOpenAdd}>
               <Plus className="h-4 w-4 mr-2" />
               {t('categories.addCategory')}
             </Button>
@@ -109,7 +148,12 @@ export default function CategoriesPage() {
             setFormData(defaultFormData);
           }
         }}>
-          <DialogContent>
+          <DialogContent
+            onCloseAutoFocus={(e) => {
+              e.preventDefault();
+              restoreScrollAndFocus();
+            }}
+          >
             <DialogHeader>
               <DialogTitle>{editingCategoryId ? t('categories.editCategory') : t('categories.createCategory')}</DialogTitle>
               <DialogDescription>
@@ -117,83 +161,83 @@ export default function CategoriesPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Form content ... */}
-                <div>
-                  <Label htmlFor="name">{t('categories.categoryName')}</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder={t('categories.namePlaceholder') || ''}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
+              <div>
+                <Label htmlFor="name">{t('categories.categoryName')}</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder={t('categories.namePlaceholder') || ''}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
 
-                <div>
-                  <Label>{t('categories.type')}</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: 'INCOME' | 'EXPENSE') => setFormData({ ...formData, type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EXPENSE">{t('categories.expense')}</SelectItem>
-                      <SelectItem value="INCOME">{t('categories.income')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label>{t('categories.type')}</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: 'INCOME' | 'EXPENSE') => setFormData({ ...formData, type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EXPENSE">{t('categories.expense')}</SelectItem>
+                    <SelectItem value="INCOME">{t('categories.income')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div>
-                  <Label>{t('categories.color')}</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {COLORS.map((color) => (
+              <div>
+                <Label>{t('categories.color')}</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`w-8 h-8 rounded-full border-2 transition-transform ${
+                        formData.color === color ? 'border-gray-900 scale-110 shadow-md' : 'border-gray-200'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setFormData({ ...formData, color })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label>{t('categories.icon')}</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {Object.keys(ICONS).map((iconName) => {
+                    const IconComponent = ICONS[iconName];
+                    return (
                       <button
-                        key={color}
+                        key={iconName}
                         type="button"
-                        className={`w-8 h-8 rounded-full border-2 transition-transform ${
-                          formData.color === color ? 'border-gray-900 scale-110 shadow-md' : 'border-gray-200'
+                        className={`p-2 border rounded-md transition-all ${
+                          formData.icon === iconName ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
                         }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setFormData({ ...formData, color })}
-                      />
-                    ))}
-                  </div>
+                        onClick={() => setFormData({ ...formData, icon: iconName })}
+                      >
+                        <IconComponent className="w-5 h-5 text-gray-700" />
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div>
-                  <Label>{t('categories.icon')}</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {Object.keys(ICONS).map((iconName) => {
-                      const IconComponent = ICONS[iconName];
-                      return (
-                        <button
-                          key={iconName}
-                          type="button"
-                          className={`p-2 border rounded-md transition-all ${
-                            formData.icon === iconName ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-                          }`}
-                          onClick={() => setFormData({ ...formData, icon: iconName })}
-                        >
-                          <IconComponent className="w-5 h-5 text-gray-700" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-                  {isLoading ? t('categories.saving') : editingCategoryId ? t('categories.saveChanges') : t('categories.createCategory')}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              <Button type="submit" className="w-full mt-2" disabled={isLoading}>
+                {isLoading ? t('categories.saving') : editingCategoryId ? t('categories.saveChanges') : t('categories.createCategory')}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => {
             const IconComponent = ICONS[category.icon || 'Tag'] || Tag;
+            const txCount = categoryTxCountMap.get(category.id) || 0;
             return (
               <Card key={category.id} className="relative group overflow-hidden">
                 <CardContent className="p-0">
@@ -212,12 +256,17 @@ export default function CategoriesPage() {
                       <div>
                         <h3 className="font-bold text-gray-800">{category.name}</h3>
                         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-1">
-                          {category.type === 'EXPENSE' ? t('categories.expense') : t('categories.income')} • {t('categories.transactionsCount', { count: getCategoryTransactionCount(category.id) })}
+                          {category.type === 'EXPENSE' ? t('categories.expense') : t('categories.income')} • {t('categories.transactionsCount', { count: txCount })}
                         </p>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(category)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => handleOpenEdit(category, e)}
+                      >
                         <Edit2 className="h-4 w-4 text-gray-500" />
                       </Button>
                     </div>
@@ -233,7 +282,7 @@ export default function CategoriesPage() {
             <CardContent className="py-12 text-center">
               <Tag className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-600 mb-4">{t('categories.noCategories')}</p>
-              <Button onClick={handleOpenAdd}>{t('categories.createFirst')}</Button>
+              <Button type="button" onClick={handleOpenAdd}>{t('categories.createFirst')}</Button>
             </CardContent>
           </Card>
         )}

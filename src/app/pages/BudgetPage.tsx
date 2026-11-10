@@ -1,22 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Calendar, Edit2, Trash2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid, Pin, ArrowUpDown, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
+import { Plus, Calendar, Edit2, CheckCircle2, Copy, FastForward, Zap, Layers, PieChart, LayoutGrid, ArrowUpDown } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+import { Card } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Progress } from '../components/ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
-import { useApp } from '../context/AppContext';
+import { useApp, CurrencyRate } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
 import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
-import { formatAmount } from '../components/ui/utils';
+import { BudgetCard } from './Budget/BudgetCard';
+import { BudgetPlanDialog } from './Budget/BudgetPlanDialog';
+import { BudgetPeriodDialog } from './Budget/BudgetPeriodDialog';
+import { BudgetSummaryCards } from './Budget/BudgetSummaryCards';
+
+interface ProcessedExpense {
+  id: string;
+  categoryId: string;
+  amount: number;
+  currency: string;
+  timestamp: number;
+}
 
 export default function BudgetPage() {
   const { t } = useTranslation();
@@ -34,18 +40,23 @@ export default function BudgetPage() {
   const cloneBudgetPeriod = appData?.cloneBudgetPeriod;
 
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
+
+  // Dialog open states
+  const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
   const [isEditPeriodOpen, setIsEditPeriodOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [editingPeriod, setEditingPeriod] = useState<any>(null);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('none');
+  const [selectedPeriodStatus, setSelectedPeriodStatus] = useState<'DRAFT' | 'ACTIVE' | 'FINISHED'>('ACTIVE');
+  const [selectedDateRange, setSelectedDateRange] = useState<{ startDate: string; endDate: string } | undefined>(undefined);
   const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
   const [budgetToDelete, setBudgetToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
+
+  // View & Ordering State
   const [viewMode, setViewMode] = useState<'proportional' | 'grid'>('proportional');
 
-  // Ordering & Pinning State
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('mywallet_pinned_budgets') || '[]');
@@ -64,68 +75,189 @@ export default function BudgetPage() {
 
   const [sortByMode, setSortByMode] = useState<'custom' | 'limit' | 'spent' | 'name'>('custom');
 
-  const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
-  const [dateRange, setDateRange] = useState({
-    startDate: firstDay.toISOString().split('T')[0],
-    endDate: lastDay.toISOString().split('T')[0],
-  });
-
-  const [formData, setFormData] = useState({
-    categoryId: '',
-    limit: '',
-    status: 'ACTIVE' as 'DRAFT' | 'ACTIVE' | 'FINISHED',
-    note: '',
-    currency: 'USD',
-    periodId: 'none',
-  });
-
-  const [periodFormData, setPeriodFormData] = useState({
-    name: '',
-    startDate: firstDay.toISOString().split('T')[0],
-    endDate: lastDay.toISOString().split('T')[0],
-  });
+  // Rates fallback (uses appData.rates if available; otherwise fetches once)
+  const [fallbackRates, setFallbackRates] = useState<CurrencyRate[]>([]);
+  const rawRates = (Array.isArray(appData?.rates) && appData.rates.length > 0) ? appData.rates : fallbackRates;
+  const rates = Array.isArray(rawRates) ? rawRates : [];
 
   useEffect(() => {
-    currencyApi.getRates().then(setRates).catch(console.error);
+    if (!Array.isArray(appData?.rates) || appData.rates.length === 0) {
+      currencyApi.getRates()
+        .then((res: any) => {
+          if (Array.isArray(res)) {
+            setFallbackRates(res);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [appData?.rates]);
+
+  // Exact scroll & focus retention refs
+  const savedScrollYRef = useRef<number>(0);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
+
+  const saveScrollPosition = useCallback((triggerEl?: HTMLElement | null) => {
+    savedScrollYRef.current = window.scrollY || document.documentElement.scrollTop || 0;
+    if (triggerEl) {
+      triggerElementRef.current = triggerEl;
+    }
   }, []);
 
-  const convertCurrency = (amount: number, from: string, to: string) => {
-    if (from === to) return amount;
+  const restoreScrollAndFocus = useCallback(() => {
+    const targetY = savedScrollYRef.current;
+    const targetEl = triggerElementRef.current;
 
-    let amountInUSD = amount;
+    if (targetEl && typeof targetEl.focus === 'function') {
+      targetEl.focus({ preventScroll: true });
+    }
+
+    window.scrollTo({ top: targetY, behavior: 'instant' });
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: 'instant' });
+      if (targetEl && typeof targetEl.focus === 'function') {
+        targetEl.focus({ preventScroll: true });
+      }
+    });
+  }, []);
+
+  // Fast O(1) lookup maps
+  const ratesMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rates) {
+      map.set(`${r.from}->${r.to}`, r.rate);
+    }
+    return map;
+  }, [rates]);
+
+  const convertCurrency = useCallback((amount: number, from: string, to: string) => {
+    if (from === to || !amount) return amount;
+
+    let inUSD = amount;
     if (from !== 'USD') {
-      const fromRate = rates.find(r => r.from === from && r.to === 'USD');
-      if (fromRate) amountInUSD = amount * fromRate.rate;
-      else if (from === 'UAH') amountInUSD = amount / 40;
+      const rate = ratesMap.get(`${from}->USD`);
+      if (rate !== undefined) inUSD = amount * rate;
+      else if (from === 'UAH') inUSD = amount / 40;
     }
 
-    if (to === 'USD') return amountInUSD;
+    if (to === 'USD') return inUSD;
 
-    const toRate = rates.find(r => r.from === 'USD' && r.to === to);
-    if (toRate) return amountInUSD * toRate.rate;
-    if (to === 'UAH') return amountInUSD * 40;
+    const toRate = ratesMap.get(`USD->${to}`);
+    if (toRate !== undefined) return inUSD * toRate;
+    if (to === 'UAH') return inUSD * 40;
 
-    return amountInUSD;
-  };
+    return inUSD;
+  }, [ratesMap]);
 
-  const getWalletById = (id: string) => wallets.find(w => w.id === id);
-  const getCategoryById = (id: string) => categories.find(c => c.id === id);
+  const walletsMap = useMemo(() => new Map(wallets.map(w => [w.id, w])), [wallets]);
+  const categoriesMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
-  const handleTogglePin = (id: string) => {
-    const isPinned = pinnedIds.includes(id);
-    const updated = isPinned ? pinnedIds.filter(p => p !== id) : [...pinnedIds, id];
-    setPinnedIds(updated);
-    try {
-      localStorage.setItem('mywallet_pinned_budgets', JSON.stringify(updated));
-    } catch (err) {
-      console.error(err);
+  // Pre-process expense transactions by category with pre-computed timestamps
+  const expensesByCat = useMemo(() => {
+    const map = new Map<string, ProcessedExpense[]>();
+    for (const t of transactions) {
+      if (t.type === 'EXPENSE' && t.categoryId) {
+        const wallet = walletsMap.get(t.walletId);
+        const currency = wallet?.currency || 'USD';
+        const timestamp = new Date(t.date).getTime();
+        let list = map.get(t.categoryId);
+        if (!list) {
+          list = [];
+          map.set(t.categoryId, list);
+        }
+        list.push({
+          id: t.id,
+          categoryId: t.categoryId,
+          amount: t.amount,
+          currency,
+          timestamp,
+        });
+      }
     }
-  };
+    return map;
+  }, [transactions, walletsMap]);
 
-  const handleMoveItem = (groupId: string, id: string, direction: 'left' | 'right', currentIds: string[]) => {
+  // Compute spent amount for every budget plan exactly once in O(1)
+  const budgetSpentAmounts = useMemo(() => {
+    const spentMap = new Map<string, number>();
+    for (const bp of budgetPlans) {
+      const list = expensesByCat.get(bp.categoryId);
+      if (!list || list.length === 0) {
+        spentMap.set(bp.id, 0);
+        continue;
+      }
+      const startTs = new Date(bp.startDate).getTime();
+      const endTs = new Date(bp.endDate).getTime();
+      const targetCurrency = bp.currency || 'USD';
+
+      let total = 0;
+      for (const exp of list) {
+        if (exp.timestamp >= startTs && exp.timestamp <= endTs) {
+          total += convertCurrency(exp.amount, exp.currency, targetCurrency);
+        }
+      }
+      spentMap.set(bp.id, total);
+    }
+    return spentMap;
+  }, [budgetPlans, expensesByCat, convertCurrency]);
+
+  // Memoized metrics & categorized budgets
+  const { activeBudgets, draftBudgets, summaryByCurrency, overBudgetCount } = useMemo(() => {
+    const active: any[] = [];
+    const draft: any[] = [];
+    const summary: Record<string, { planned: number; spent: number }> = {};
+    let overCount = 0;
+
+    for (const bp of budgetPlans) {
+      const spent = budgetSpentAmounts.get(bp.id) || 0;
+      const item = { ...bp, spentAmount: spent };
+      if (bp.status === 'ACTIVE') {
+        active.push(item);
+        const cur = bp.currency || 'USD';
+        if (!summary[cur]) {
+          summary[cur] = { planned: 0, spent: 0 };
+        }
+        summary[cur].planned += bp.limit;
+        summary[cur].spent += spent;
+        if (spent > bp.limit) {
+          overCount++;
+        }
+      } else if (bp.status === 'DRAFT') {
+        draft.push(item);
+      }
+    }
+
+    active.sort((a, b) => b.limit - a.limit);
+    draft.sort((a, b) => b.limit - a.limit);
+
+    return {
+      activeBudgets: active,
+      draftBudgets: draft,
+      summaryByCurrency: summary,
+      overBudgetCount: overCount,
+    };
+  }, [budgetPlans, budgetSpentAmounts]);
+
+  // Pin & Reorder handlers
+  const handleTogglePin = useCallback((id: string, e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    saveScrollPosition(e.currentTarget);
+    setPinnedIds((prev) => {
+      const isPinned = prev.includes(id);
+      const updated = isPinned ? prev.filter(p => p !== id) : [...prev, id];
+      try {
+        localStorage.setItem('mywallet_pinned_budgets', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+    restoreScrollAndFocus();
+  }, [saveScrollPosition, restoreScrollAndFocus]);
+
+  const handleMoveItem = useCallback((groupId: string, id: string, direction: 'left' | 'right', currentIds: string[], e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    saveScrollPosition(e.currentTarget);
     const idx = currentIds.indexOf(id);
     if (idx === -1) return;
     const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
@@ -135,32 +267,58 @@ export default function BudgetPage() {
     const [moved] = newOrder.splice(idx, 1);
     newOrder.splice(targetIdx, 0, moved);
 
-    const updatedOrders = { ...customOrders, [groupId]: newOrder };
-    setCustomOrders(updatedOrders);
+    setCustomOrders((prev) => {
+      const updatedOrders = { ...prev, [groupId]: newOrder };
+      try {
+        localStorage.setItem('mywallet_budget_orders', JSON.stringify(updatedOrders));
+      } catch (err) {
+        console.error(err);
+      }
+      return updatedOrders;
+    });
     setSortByMode('custom');
-    try {
-      localStorage.setItem('mywallet_budget_orders', JSON.stringify(updatedOrders));
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    restoreScrollAndFocus();
+  }, [saveScrollPosition, restoreScrollAndFocus]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Navigation handlers
+  const handleCardClick = useCallback((categoryId: string) => {
+    navigate(`/transactions?categoryId=${categoryId}`);
+  }, [navigate]);
+
+  const handleNavigateAnalytics = useCallback((categoryId: string, e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    navigate(`/budget/analytics/${categoryId}`);
+  }, [navigate]);
+
+  // Open Create Dialog
+  const handleOpenCreate = useCallback((triggerEl?: HTMLElement | null, options?: { periodId?: string; status?: 'DRAFT' | 'ACTIVE' | 'FINISHED'; dateRange?: { startDate: string; endDate: string } }) => {
+    saveScrollPosition(triggerEl);
+    setEditingBudget(null);
+    setSelectedPeriodId(options?.periodId || 'none');
+    setSelectedPeriodStatus(options?.status || 'ACTIVE');
+    setSelectedDateRange(options?.dateRange);
+    setIsBudgetDialogOpen(true);
+  }, [saveScrollPosition]);
+
+  // Open Edit Dialog
+  const handleEdit = useCallback((budget: any, e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    saveScrollPosition(e.currentTarget);
+    setEditingBudget(budget);
+    setSelectedPeriodId(budget.periodId || 'none');
+    setSelectedPeriodStatus(budget.status || 'ACTIVE');
+    setSelectedDateRange({
+      startDate: new Date(budget.startDate).toISOString().split('T')[0],
+      endDate: new Date(budget.endDate).toISOString().split('T')[0],
+    });
+    setIsBudgetDialogOpen(true);
+  }, [saveScrollPosition]);
+
+  // Submit Budget Plan (create or update)
+  const handleSubmitBudgetPlan = async (budgetData: any) => {
     if (!addBudgetPlan || !updateBudgetPlan) return;
     setIsLoading(true);
     try {
-      const budgetData = {
-        categoryId: formData.categoryId,
-        limit: parseFloat(formData.limit),
-        startDate: new Date(dateRange.startDate).toISOString(),
-        endDate: new Date(dateRange.endDate).toISOString(),
-        status: formData.status,
-        note: formData.note,
-        currency: formData.currency,
-        periodId: formData.periodId === 'none' ? undefined : formData.periodId,
-      };
-
       if (editingBudget) {
         await updateBudgetPlan(editingBudget.id, budgetData);
         toast.success(t('budget.successUpdate'));
@@ -168,10 +326,9 @@ export default function BudgetPage() {
         await addBudgetPlan(budgetData);
         toast.success(t('budget.successCreate'));
       }
-
-      setIsOpen(false);
+      setIsBudgetDialogOpen(false);
       setEditingBudget(null);
-      setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: 'none' });
+      restoreScrollAndFocus();
     } catch (error: any) {
       toast.error(error.message || t('budget.failSave'));
     } finally {
@@ -179,24 +336,9 @@ export default function BudgetPage() {
     }
   };
 
-  const handleEdit = (budget: any) => {
-    setEditingBudget(budget);
-    setFormData({
-      categoryId: budget.categoryId,
-      limit: budget.limit.toString(),
-      status: budget.status,
-      note: budget.note || '',
-      currency: budget.currency || 'USD',
-      periodId: budget.periodId || 'none',
-    });
-    setDateRange({
-      startDate: new Date(budget.startDate).toISOString().split('T')[0],
-      endDate: new Date(budget.endDate).toISOString().split('T')[0],
-    });
-    setIsOpen(true);
-  };
-
-  const handleCloneToDraft = async () => {
+  // Clone to draft
+  const handleCloneToDraft = async (e: React.MouseEvent<HTMLElement>) => {
+    saveScrollPosition(e.currentTarget);
     const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
 
     if (activePeriod) {
@@ -209,6 +351,7 @@ export default function BudgetPage() {
         toast.error(error.message || t('budget.failClone'));
       } finally {
         setIsLoading(false);
+        restoreScrollAndFocus();
       }
       return;
     }
@@ -250,20 +393,23 @@ export default function BudgetPage() {
       toast.error(error.message || t('budget.failClone'));
     } finally {
       setIsLoading(false);
+      restoreScrollAndFocus();
     }
   };
 
-  const handleFinishAll = () => {
-    const activeBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
+  // Finish All dialog
+  const handleFinishAllClick = (e: React.MouseEvent<HTMLElement>) => {
+    const activeBudgetsCount = budgetPlans.filter(bp => bp.status === 'ACTIVE').length;
     const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
-    if (activeBudgets.length === 0 && !activePeriod) return;
+    if (activeBudgetsCount === 0 && !activePeriod) return;
+    saveScrollPosition(e.currentTarget);
     setIsFinishDialogOpen(true);
   };
 
   const onConfirmFinish = async () => {
     setIsFinishDialogOpen(false);
     const activePeriod = budgetPeriods.find(p => p.status === 'ACTIVE');
-    const activeBudgets = budgetPlans.filter(bp => bp.status === 'ACTIVE');
+    const activeBudgetsList = budgetPlans.filter(bp => bp.status === 'ACTIVE');
 
     setIsLoading(true);
     try {
@@ -273,7 +419,7 @@ export default function BudgetPage() {
         }
       } else {
         if (updateBudgetPlan) {
-          await Promise.all(activeBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
+          await Promise.all(activeBudgetsList.map(bp => updateBudgetPlan(bp.id, { status: 'FINISHED' })));
         }
       }
       toast.success(t('budget.successFinish'));
@@ -281,8 +427,33 @@ export default function BudgetPage() {
       toast.error(error.message || t('budget.failFinish'));
     } finally {
       setIsLoading(false);
+      restoreScrollAndFocus();
     }
   };
+
+  // Activate all drafts
+  const handleActivateAll = async (e: React.MouseEvent<HTMLElement>) => {
+    saveScrollPosition(e.currentTarget);
+    const draftBudgetsList = budgetPlans.filter(bp => bp.status === 'DRAFT');
+    if (draftBudgetsList.length === 0 || !updateBudgetPlan) return;
+    setIsLoading(true);
+    try {
+      await Promise.all(draftBudgetsList.map(bp => updateBudgetPlan(bp.id, { status: 'ACTIVE' })));
+      toast.success(t('budget.successActivate'));
+    } catch (error: any) {
+      toast.error(error.message || t('budget.failActivate'));
+    } finally {
+      setIsLoading(false);
+      restoreScrollAndFocus();
+    }
+  };
+
+  // Delete budget
+  const handleDeleteBudgetClick = useCallback((id: string, e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    saveScrollPosition(e.currentTarget);
+    setBudgetToDelete(id);
+  }, [saveScrollPosition]);
 
   const onConfirmDeleteBudget = async () => {
     if (!budgetToDelete || !deleteBudgetPlan) return;
@@ -293,53 +464,50 @@ export default function BudgetPage() {
       toast.error(error.message || t('budget.failDelete'));
     } finally {
       setBudgetToDelete(null);
+      restoreScrollAndFocus();
     }
   };
 
-  const handleCreatePeriod = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Period management
+  const handleCreatePeriodClick = (e: React.MouseEvent<HTMLElement>) => {
+    saveScrollPosition(e.currentTarget);
+    setIsPeriodOpen(true);
+  };
+
+  const handleCreatePeriodSubmit = async (data: { name: string; startDate: string; endDate: string }) => {
     if (!addBudgetPeriod) return;
     setIsLoading(true);
     try {
       await addBudgetPeriod({
-        name: periodFormData.name,
-        startDate: new Date(periodFormData.startDate).toISOString(),
-        endDate: new Date(periodFormData.endDate).toISOString(),
-        status: 'DRAFT'
+        name: data.name,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        status: 'DRAFT',
       });
       toast.success(t('budget.successCreate'));
       setIsPeriodOpen(false);
-      setPeriodFormData({
-        name: '',
-        startDate: firstDay.toISOString().split('T')[0],
-        endDate: lastDay.toISOString().split('T')[0],
-      });
     } catch (error: any) {
       toast.error(error.message || t('budget.failSave'));
     } finally {
       setIsLoading(false);
+      restoreScrollAndFocus();
     }
   };
 
-  const handleEditPeriod = (period: any) => {
+  const handleEditPeriodClick = (period: any, e: React.MouseEvent<HTMLElement>) => {
+    saveScrollPosition(e.currentTarget);
     setEditingPeriod(period);
-    setPeriodFormData({
-      name: period.name,
-      startDate: new Date(period.startDate).toISOString().split('T')[0],
-      endDate: new Date(period.endDate).toISOString().split('T')[0],
-    });
     setIsEditPeriodOpen(true);
   };
 
-  const handleUpdatePeriod = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdatePeriodSubmit = async (data: { name: string; startDate: string; endDate: string }) => {
     if (!editingPeriod || !updateBudgetPeriod) return;
     setIsLoading(true);
     try {
       await updateBudgetPeriod(editingPeriod.id, {
-        name: periodFormData.name,
-        startDate: new Date(periodFormData.startDate).toISOString(),
-        endDate: new Date(periodFormData.endDate).toISOString(),
+        name: data.name,
+        startDate: data.startDate,
+        endDate: data.endDate,
       });
       toast.success(t('budget.successUpdatePeriod'));
       setIsEditPeriodOpen(false);
@@ -348,70 +516,11 @@ export default function BudgetPage() {
       toast.error(error.message || t('budget.failUpdatePeriod'));
     } finally {
       setIsLoading(false);
+      restoreScrollAndFocus();
     }
   };
 
-  const handleActivateAll = async () => {
-    const draftBudgets = budgetPlans.filter(bp => bp.status === 'DRAFT');
-    if (draftBudgets.length === 0 || !updateBudgetPlan) return;
-    setIsLoading(true);
-    try {
-      await Promise.all(draftBudgets.map(bp => updateBudgetPlan(bp.id, { status: 'ACTIVE' })));
-      toast.success(t('budget.successActivate'));
-    } catch (error: any) {
-      toast.error(error.message || t('budget.failActivate'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getSpentAmount = (categoryId: string, startStr: string, endStr: string, budgetCurrency: string) => {
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-
-    return transactions
-      .filter(t => {
-        const d = new Date(t.date);
-        return (
-          t.type === 'EXPENSE' &&
-          t.categoryId === categoryId &&
-          d >= start && d <= end
-        );
-      })
-      .reduce((sum, t) => {
-        const wallet = getWalletById(t.walletId);
-        return sum + convertCurrency(t.amount, wallet?.currency || 'USD', budgetCurrency);
-      }, 0);
-  };
-
-  const activeBudgets = budgetPlans
-    .filter(bp => bp.status === 'ACTIVE')
-    .map(bp => ({
-      ...bp,
-      spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD'),
-    }))
-    .sort((a, b) => b.limit - a.limit);
-
-  const draftBudgets = budgetPlans
-    .filter(bp => bp.status === 'DRAFT')
-    .map(bp => ({
-      ...bp,
-      spentAmount: getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD'),
-    }))
-    .sort((a, b) => b.limit - a.limit);
-
-  const summaryByCurrency = activeBudgets.reduce((acc, bp) => {
-    const cur = bp.currency || 'USD';
-    if (!acc[cur]) {
-      acc[cur] = { planned: 0, spent: 0 };
-    }
-    acc[cur].planned += bp.limit;
-    acc[cur].spent += bp.spentAmount;
-    return acc;
-  }, {} as Record<string, { planned: number; spent: number }>);
-
-  const overBudgetCount = activeBudgets.filter(bp => bp.spentAmount > bp.limit).length;
-
+  // Render budget grid for a group (period or standalone)
   const renderBudgetGrid = (budgetsList: any[], periodStatus?: string, periodId?: string) => {
     const safeList = budgetsList || [];
     if (safeList.length === 0 && periodStatus !== 'DRAFT') {
@@ -421,9 +530,9 @@ export default function BudgetPage() {
     const groupId = periodId || 'standalone';
     const savedOrder = customOrders[groupId] || [];
 
-    let items = safeList.map(bp => {
-      const category = getCategoryById(bp.categoryId);
-      const spentAmount = getSpentAmount(bp.categoryId, bp.startDate, bp.endDate, bp.currency || 'USD');
+    const items = safeList.map(bp => {
+      const category = categoriesMap.get(bp.categoryId);
+      const spentAmount = budgetSpentAmounts.get(bp.id) ?? 0;
       const limitUSD = convertCurrency(bp.limit, bp.currency || 'USD', 'USD');
       const isPinned = pinnedIds.includes(bp.id);
       return {
@@ -443,7 +552,6 @@ export default function BudgetPage() {
     } else if (sortByMode === 'name') {
       items.sort((a, b) => (a.category?.name || '').localeCompare(b.category?.name || ''));
     } else {
-      // Custom order
       items.sort((a, b) => {
         const idxA = savedOrder.indexOf(a.id);
         const idxB = savedOrder.indexOf(b.id);
@@ -458,10 +566,8 @@ export default function BudgetPage() {
     items.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
 
     const itemIds = items.map(i => i.id);
-
     const totalUSD = items.reduce((sum, item) => sum + item.limitUSD, 0) || 1;
     const maxUSD = Math.max(...items.map(item => item.limitUSD), 1);
-
     const isProportional = viewMode === 'proportional';
 
     const containerClasses = isProportional
@@ -471,204 +577,31 @@ export default function BudgetPage() {
     return (
       <div className={containerClasses}>
         {items.map((bp, index) => {
-          const percent = bp.limit > 0 ? (bp.spentAmount / bp.limit) * 100 : 0;
-          const delta = bp.limit - bp.spentAmount;
-          const isOver = delta < 0;
-          const currencySymbol = bp.currency === 'USD' ? '$' : bp.currency === 'UAH' ? '₴' : bp.currency;
-
           const share = bp.limitUSD / totalUSD;
           const relativeRatio = bp.limitUSD / maxUSD;
           const sharePercent = Math.round(share * 100);
 
-          const flexGrow = isProportional ? Math.max(1, Math.round(relativeRatio * 12)) : undefined;
-          const flexBasis = isProportional
-            ? (relativeRatio >= 0.65 ? 'calc(55% - 1rem)' : relativeRatio >= 0.35 ? 'calc(35% - 1rem)' : 'calc(24% - 1rem)')
-            : undefined;
-          const minWidth = isProportional ? (relativeRatio >= 0.5 ? '260px' : '200px') : undefined;
-          const minHeight = isProportional ? `${Math.max(140, Math.min(250, Math.round(130 + relativeRatio * 110)))}px` : undefined;
-
-          const cardStyle = isProportional ? {
-            flexGrow,
-            flexBasis,
-            minWidth,
-            minHeight,
-            background: bp.category?.color 
-              ? `linear-gradient(135deg, ${bp.category.color}15 0%, ${bp.category.color}03 100%)` 
-              : undefined,
-            borderColor: bp.category?.color ? `${bp.category.color}35` : undefined,
-          } : {
-            background: bp.category?.color 
-              ? `linear-gradient(135deg, ${bp.category.color}12 0%, ${bp.category.color}02 100%)` 
-              : undefined,
-          };
-
-          const titleSize = isProportional && relativeRatio >= 0.5 ? 'text-base sm:text-lg' : 'text-sm font-bold';
-          const amountSize = isProportional && relativeRatio >= 0.5 ? 'text-lg sm:text-xl font-bold' : 'text-sm font-semibold';
-          const progressHeight = isProportional && relativeRatio >= 0.5 ? 'h-2.5' : 'h-1.5';
-
           return (
-            <Tooltip key={bp.id}>
-              <TooltipTrigger asChild>
-                <Card
-                  className={`relative overflow-hidden group cursor-pointer hover:shadow-lg transition-all duration-300 flex flex-col justify-between ${
-                    periodStatus === 'DRAFT' ? 'opacity-80 border-dashed' : ''
-                  } ${bp.isPinned ? 'ring-1 ring-amber-400/50 dark:ring-amber-500/40 shadow-sm' : ''}`}
-                  style={cardStyle}
-                  onClick={() => navigate(`/transactions?categoryId=${bp.categoryId}`)}
-                >
-                  <div
-                    className="absolute top-0 left-0 w-1.5 h-full transition-all duration-300 group-hover:w-2"
-                    style={{ backgroundColor: bp.category?.color || '#3b82f6' }}
-                  />
-
-                  <CardContent className="pt-4 pb-3 px-4 flex flex-col justify-between h-full space-y-3">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="space-y-0.5 flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {bp.isPinned && (
-                            <Badge className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 text-[10px] px-1.5 py-0 flex items-center gap-1 font-semibold">
-                              <Pin className="h-2.5 w-2.5 fill-amber-600" />
-                              {t('budget.pinned')}
-                            </Badge>
-                          )}
-                          <h4 className={`font-bold tracking-tight text-gray-900 dark:text-gray-100 ${titleSize}`}>
-                            {bp.category?.name || 'Category'}
-                          </h4>
-                          {isProportional && items.length > 1 && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300">
-                              {t('budget.shareOfTotal', { percent: sharePercent })}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-gray-400">
-                          {new Date(bp.startDate).toLocaleDateString()} - {new Date(bp.endDate).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      {/* Card Action Controls (Pin, Move Left/Right, Edit, Delete) */}
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                        <div className="bg-white/95 backdrop-blur-sm shadow-sm rounded-full p-0.5 border border-gray-100 flex gap-0.5 items-center">
-                          {/* Pin Toggle */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={bp.isPinned ? t('budget.unpin') : t('budget.pin')}
-                            className={`h-7 w-7 rounded-full transition-colors ${
-                              bp.isPinned ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
-                            }`}
-                            onClick={(e) => { e.stopPropagation(); handleTogglePin(bp.id); }}
-                          >
-                            <Pin className={`h-3.5 w-3.5 ${bp.isPinned ? 'fill-amber-500' : ''}`} />
-                          </Button>
-
-                          {/* Move Backward */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('budget.moveLeft')}
-                            disabled={index === 0}
-                            className="h-7 w-7 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors disabled:opacity-30"
-                            onClick={(e) => { e.stopPropagation(); handleMoveItem(groupId, bp.id, 'left', itemIds); }}
-                          >
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                          </Button>
-
-                          {/* Move Forward */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('budget.moveRight')}
-                            disabled={index === items.length - 1}
-                            className="h-7 w-7 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors disabled:opacity-30"
-                            onClick={(e) => { e.stopPropagation(); handleMoveItem(groupId, bp.id, 'right', itemIds); }}
-                          >
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </Button>
-
-                          {/* Analytics */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t('budget.analyticsIcon')}
-                            className="h-7 w-7 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/budget/analytics/${bp.categoryId}`); }}
-                          >
-                            <BarChart2 className="h-3.5 w-3.5" />
-                          </Button>
-
-                          {/* Edit */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
-                            onClick={(e) => { e.stopPropagation(); handleEdit(bp); }}
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-
-                          {/* Delete */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                            onClick={(e) => { e.stopPropagation(); setBudgetToDelete(bp.id); }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {bp.note && isProportional && relativeRatio >= 0.3 && (
-                      <p className="text-xs text-gray-500 italic line-clamp-1">
-                        "{bp.note}"
-                      </p>
-                    )}
-
-                    <div className="space-y-2 mt-auto">
-                      <div className="flex justify-between items-baseline text-xs gap-2">
-                        <span className={`text-gray-900 dark:text-gray-100 ${amountSize}`}>
-                          {currencySymbol}{formatAmount(bp.spentAmount)}
-                        </span>
-                        <span className="text-gray-400 font-medium">
-                          {t('budget.of')} {currencySymbol}{formatAmount(bp.limit)}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
-                          <div
-                            className={`rounded-full transition-all duration-500 ${progressHeight} ${
-                              percent > 100
-                                ? 'bg-red-500'
-                                : percent >= 80
-                                ? 'bg-amber-500'
-                                : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.min(percent, 100)}%` }}
-                          />
-                        </div>
-
-                        <div className="flex justify-between items-center text-[10px]">
-                          <span className={`font-semibold ${isOver ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                            {isOver ? t('budget.over') : t('budget.left')}: {currencySymbol}{formatAmount(Math.abs(delta))}
-                          </span>
-                          <span className="text-gray-400 font-medium">{Math.round(percent)}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p className="font-medium text-xs">
-                  {isOver ? t('budget.over') : t('budget.left')}:
-                  <span className={`ml-1 ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-                    {currencySymbol}{formatAmount(Math.abs(delta))}
-                  </span>
-                </p>
-              </TooltipContent>
-            </Tooltip>
+            <BudgetCard
+              key={bp.id}
+              bp={bp}
+              category={bp.category}
+              spentAmount={bp.spentAmount}
+              limitUSD={bp.limitUSD}
+              isPinned={bp.isPinned}
+              isProportional={isProportional}
+              relativeRatio={relativeRatio}
+              sharePercent={sharePercent}
+              periodStatus={periodStatus}
+              index={index}
+              totalItems={items.length}
+              onTogglePin={handleTogglePin}
+              onMoveItem={(dir, e) => handleMoveItem(groupId, bp.id, dir, itemIds, e)}
+              onNavigateAnalytics={handleNavigateAnalytics}
+              onEdit={handleEdit}
+              onDelete={handleDeleteBudgetClick}
+              onCardClick={handleCardClick}
+            />
           );
         })}
 
@@ -677,18 +610,16 @@ export default function BudgetPage() {
             className={`flex flex-col items-center justify-center p-6 border-dashed border-2 opacity-50 hover:opacity-100 hover:border-indigo-400 transition-all cursor-pointer bg-gray-50/50 ${
               isProportional ? 'min-w-[180px] min-h-[140px] flex-grow' : 'min-h-[140px]'
             }`}
-            onClick={() => {
-              if (periodId) {
-                setFormData({ ...formData, status: periodStatus as any, periodId: periodId });
-                const periodObj = (budgetPeriods || []).find(p => p.id === periodId);
-                if (periodObj) {
-                  setDateRange({
-                    startDate: new Date(periodObj.startDate).toISOString().split('T')[0],
-                    endDate: new Date(periodObj.endDate).toISOString().split('T')[0]
-                  });
-                }
-              }
-              setIsOpen(true);
+            onClick={(e) => {
+              const periodObj = (budgetPeriods || []).find(p => p.id === periodId);
+              handleOpenCreate(e.currentTarget, {
+                periodId: periodId,
+                status: periodStatus as any,
+                dateRange: periodObj ? {
+                  startDate: new Date(periodObj.startDate).toISOString().split('T')[0],
+                  endDate: new Date(periodObj.endDate).toISOString().split('T')[0],
+                } : undefined,
+              });
             }}
           >
             <Plus className="h-6 w-6 text-indigo-500 mb-2" />
@@ -751,242 +682,55 @@ export default function BudgetPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" onClick={handleCloneToDraft} disabled={isLoading}>
+              <Button type="button" variant="outline" onClick={handleCloneToDraft} disabled={isLoading}>
                 <Copy className="h-4 w-4 mr-2" />
                 {t('budget.cloneDraft')}
               </Button>
-              <Button variant="outline" className="text-red-600 border-red-100 hover:bg-red-50" onClick={handleFinishAll} disabled={isLoading || activeBudgets.length === 0}>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-red-600 border-red-100 hover:bg-red-50"
+                onClick={handleFinishAllClick}
+                disabled={isLoading || activeBudgets.length === 0}
+              >
                 <FastForward className="h-4 w-4 mr-2" />
                 {t('budget.finishAll')}
               </Button>
-              <Button variant="outline" className="text-green-600 border-green-100 hover:bg-green-50" onClick={handleActivateAll} disabled={isLoading || draftBudgets.length === 0}>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-green-600 border-green-100 hover:bg-green-50"
+                onClick={handleActivateAll}
+                disabled={isLoading || draftBudgets.length === 0}
+              >
                 <Zap className="h-4 w-4 mr-2" />
                 {t('budget.activateDrafts')}
               </Button>
 
-              <Dialog open={isPeriodOpen} onOpenChange={setIsPeriodOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="border-indigo-100 text-indigo-600 hover:bg-indigo-50">
-                    <Layers className="h-4 w-4 mr-2" />
-                    {t('budget.createPeriod')}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{t('budget.createPeriod')}</DialogTitle>
-                    <DialogDescription>{t('budget.namePeriod')}</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreatePeriod} className="space-y-4">
-                    <div>
-                      <Label htmlFor="periodName">{t('budget.periodName')}</Label>
-                      <Input
-                        id="periodName"
-                        placeholder={t('budget.periodNamePlaceholder') || ''}
-                        value={periodFormData.name}
-                        onChange={(e) => setPeriodFormData({ ...periodFormData, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="pStartDate">{t('budget.startDate')}</Label>
-                        <Input id="pStartDate" type="date" value={periodFormData.startDate} onChange={(e) => setPeriodFormData({ ...periodFormData, startDate: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label htmlFor="pEndDate">{t('budget.endDate')}</Label>
-                        <Input id="pEndDate" type="date" value={periodFormData.endDate} onChange={(e) => setPeriodFormData({ ...periodFormData, endDate: e.target.value })} />
-                      </div>
-                    </div>
-                    <Button type="submit" className="w-full" disabled={isLoading || !periodFormData.name}>
-                      {isLoading ? t('budget.saving') : t('budget.createBtn')}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                onClick={handleCreatePeriodClick}
+              >
+                <Layers className="h-4 w-4 mr-2" />
+                {t('budget.createPeriod')}
+              </Button>
 
-              <Dialog open={isOpen} onOpenChange={(open) => {
-                setIsOpen(open);
-                if (!open) {
-                  setEditingBudget(null);
-                  setFormData({ categoryId: '', limit: '', status: 'ACTIVE', note: '', currency: 'USD', periodId: 'none' });
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('budget.addBudget')}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingBudget ? t('budget.editBudget') : t('budget.createBudget')}</DialogTitle>
-                    <DialogDescription>{t('budget.description')}</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="startDate">{t('budget.startDate')}</Label>
-                        <Input id="startDate" type="date" value={dateRange.startDate} onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label htmlFor="endDate">{t('budget.endDate')}</Label>
-                        <Input id="endDate" type="date" value={dateRange.endDate} onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })} />
-                      </div>
-                    </div>
-
-                    {!editingBudget && (
-                      <div>
-                        <Label htmlFor="category">{t('budget.category')}</Label>
-                        <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
-                          <SelectTrigger id="category">
-                            <SelectValue placeholder={t('budget.selectCategory') || ''} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.filter(c => c.type === 'EXPENSE').map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="limit">{t('budget.plannedAmount')}</Label>
-                        <Input id="limit" type="number" step="0.01" value={formData.limit} onChange={(e) => setFormData({ ...formData, limit: e.target.value })} required />
-                      </div>
-                      <div>
-                        <Label htmlFor="currency">{t('wallet.currency')}</Label>
-                        <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
-                          <SelectTrigger id="currency">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD ($)</SelectItem>
-                            <SelectItem value="UAH">UAH (₴)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="status">{t('budget.status')}</Label>
-                        <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
-                          <SelectTrigger id="status">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="DRAFT">{t('budget.statusDraft')}</SelectItem>
-                            <SelectItem value="ACTIVE">{t('budget.statusActive')}</SelectItem>
-                            <SelectItem value="FINISHED">{t('budget.statusFinished')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="period">{t('budget.archiveGroup')}</Label>
-                        <Select value={formData.periodId} onValueChange={(v) => setFormData({ ...formData, periodId: v })}>
-                          <SelectTrigger id="period">
-                            <SelectValue placeholder="No period" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {budgetPeriods.filter(p => p.status !== 'FINISHED' || formData.periodId === p.id).map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.name} ({p.status})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="note">{t('budget.note')}</Label>
-                      <Input
-                        id="note"
-                        placeholder={t('budget.notePlaceholder') || ''}
-                        value={formData.note}
-                        onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? t('budget.saving') : editingBudget ? t('budget.updateBtn') : t('budget.createBtn')}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button type="button" onClick={(e) => handleOpenCreate(e.currentTarget)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('budget.addBudget')}
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-gradient-to-br from-white to-gray-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.totalActive')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {Object.entries(summaryByCurrency).map(([cur, data]) => (
-                <div key={cur} className="text-2xl font-bold">
-                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(data.planned)}
-                </div>
-              ))}
-              {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold">$0</div>}
-              <p className="text-xs text-gray-400 mt-1">{t('budget.acrossPeriods')}</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-white to-gray-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.spentSoFar')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {Object.entries(summaryByCurrency).map(([cur, data]) => (
-                <div key={cur} className="text-2xl font-bold text-green-600">
-                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(data.spent)}
-                </div>
-              ))}
-              {Object.keys(summaryByCurrency).length === 0 && <div className="text-2xl font-bold text-green-600">$0</div>}
-
-              {Object.entries(summaryByCurrency).map(([cur, data]) => (
-                <div key={cur} className="flex items-center gap-3 mt-2">
-                  <Progress value={data.planned > 0 ? (data.spent / data.planned) * 100 : 0} className="h-1 flex-1" />
-                  <span className={`text-[10px] font-bold whitespace-nowrap ${data.planned - data.spent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(Math.abs(data.planned - data.spent))} {data.planned - data.spent >= 0 ? t('budget.left') : t('budget.over')}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-white to-gray-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('budget.overBudget')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overBudgetCount}</div>
-              <p className="text-xs text-gray-400 mt-1">{t('budget.categoriesAttention')}</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-white to-blue-50 border-blue-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-semibold text-blue-500 uppercase tracking-wider">{t('budget.totalDraft')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {Object.entries(
-                draftBudgets.reduce((acc, bp) => {
-                  const cur = bp.currency || 'USD';
-                  acc[cur] = (acc[cur] || 0) + bp.limit;
-                  return acc;
-                }, {} as Record<string, number>)
-              ).map(([cur, total]) => (
-                <div key={cur} className="text-2xl font-bold text-blue-600">
-                  {cur === 'USD' ? '$' : cur === 'UAH' ? '₴' : cur}{formatAmount(total)}
-                </div>
-              ))}
-              {draftBudgets.length === 0 && <div className="text-2xl font-bold text-blue-600">$0</div>}
-              <p className="text-xs text-gray-400 mt-1">{draftBudgets.length === 1 ? t('budget.draftItemPending') : t('budget.draftItemsPending', { count: draftBudgets.length })}</p>
-            </CardContent>
-          </Card>
-        </div>
+        <BudgetSummaryCards
+          summaryByCurrency={summaryByCurrency}
+          overBudgetCount={overBudgetCount}
+          draftBudgets={draftBudgets}
+        />
 
         {/* Budget Periods Sections */}
         {budgetPeriods
@@ -1015,16 +759,18 @@ export default function BudgetPage() {
                   </h2>
                   <div className="flex gap-2">
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
                       className="text-gray-500 hover:text-gray-700"
-                      onClick={() => handleEditPeriod(period)}
+                      onClick={(e) => handleEditPeriodClick(period, e)}
                     >
                       <Edit2 className="h-3 w-3 mr-1" />
                       {t('common.edit')}
                     </Button>
                     {period.status === 'DRAFT' && (
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         className="text-green-600 border-green-100"
@@ -1037,6 +783,7 @@ export default function BudgetPage() {
                     {period.status === 'ACTIVE' && (
                       <>
                         <Button
+                          type="button"
                           size="sm"
                           variant="outline"
                           className="text-blue-600 border-blue-100"
@@ -1046,10 +793,11 @@ export default function BudgetPage() {
                           {t('budget.cloneDraft')}
                         </Button>
                         <Button
+                          type="button"
                           size="sm"
                           variant="outline"
                           className="text-red-600 border-red-100"
-                          onClick={() => handleFinishAll()}
+                          onClick={handleFinishAllClick}
                         >
                           <FastForward className="h-3 w-3 mr-1" />
                           {t('budget.finishPeriod')}
@@ -1076,55 +824,55 @@ export default function BudgetPage() {
         )}
       </div>
 
-      {/* Edit Budget Period Dialog */}
-      <Dialog open={isEditPeriodOpen} onOpenChange={(open) => {
-        setIsEditPeriodOpen(open);
-        if (!open) setEditingPeriod(null);
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('budget.editPeriod')}</DialogTitle>
-            <DialogDescription>{t('budget.editPeriodDesc')}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleUpdatePeriod} className="space-y-4">
-            <div>
-              <Label htmlFor="editPeriodName">{t('budget.periodName')}</Label>
-              <Input
-                id="editPeriodName"
-                placeholder={t('budget.periodNamePlaceholder') || ''}
-                value={periodFormData.name}
-                onChange={(e) => setPeriodFormData({ ...periodFormData, name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="editPStartDate">{t('budget.startDate')}</Label>
-                <Input
-                  id="editPStartDate"
-                  type="date"
-                  value={periodFormData.startDate}
-                  onChange={(e) => setPeriodFormData({ ...periodFormData, startDate: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="editPEndDate">{t('budget.endDate')}</Label>
-                <Input
-                  id="editPEndDate"
-                  type="date"
-                  value={periodFormData.endDate}
-                  onChange={(e) => setPeriodFormData({ ...periodFormData, endDate: e.target.value })}
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading || !periodFormData.name}>
-              {isLoading ? t('budget.saving') : t('budget.updateBtn')}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Controlled Budget Plan Modal */}
+      <BudgetPlanDialog
+        open={isBudgetDialogOpen}
+        onOpenChange={(open) => {
+          setIsBudgetDialogOpen(open);
+          if (!open) setEditingBudget(null);
+        }}
+        budget={editingBudget}
+        categories={categories}
+        budgetPeriods={budgetPeriods}
+        defaultPeriodId={selectedPeriodId}
+        defaultStatus={selectedPeriodStatus}
+        defaultDateRange={selectedDateRange}
+        onCloseAutoFocus={restoreScrollAndFocus}
+        onSubmit={handleSubmitBudgetPlan}
+        isLoading={isLoading}
+      />
+
+      {/* Controlled Create Budget Period Modal */}
+      <BudgetPeriodDialog
+        open={isPeriodOpen}
+        onOpenChange={setIsPeriodOpen}
+        period={null}
+        onCloseAutoFocus={restoreScrollAndFocus}
+        onSubmit={handleCreatePeriodSubmit}
+        isLoading={isLoading}
+      />
+
+      {/* Controlled Edit Budget Period Modal */}
+      <BudgetPeriodDialog
+        open={isEditPeriodOpen}
+        onOpenChange={(open) => {
+          setIsEditPeriodOpen(open);
+          if (!open) setEditingPeriod(null);
+        }}
+        period={editingPeriod}
+        onCloseAutoFocus={restoreScrollAndFocus}
+        onSubmit={handleUpdatePeriodSubmit}
+        isLoading={isLoading}
+      />
+
+      {/* Confirm Finish All / Finish Period Alert Dialog */}
       <AlertDialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            restoreScrollAndFocus();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>{t('budget.confirmFinishTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1140,8 +888,14 @@ export default function BudgetPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirm Delete Budget Alert Dialog */}
       <AlertDialog open={!!budgetToDelete} onOpenChange={(open) => !open && setBudgetToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            restoreScrollAndFocus();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>{t('common.areYouSure', 'Are you sure?')}</AlertDialogTitle>
             <AlertDialogDescription>
