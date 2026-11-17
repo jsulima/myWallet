@@ -381,8 +381,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteWallet = async (id: string) => {
     await walletApi.delete(id);
     setWallets(prev => prev.filter(w => w.id !== id));
-    // Also refresh other data as deleting a wallet might affect transactions/subscriptions
-    await fetchAllData();
+    // Targeted refresh: deleting a wallet affects transactions, subscriptions, and summary
+    const [updatedWallets, updatedTx, updatedSummary, updatedSubs] = await Promise.all([
+      walletApi.getAll(),
+      transactionApi.getAll(),
+      walletApi.getSummary(),
+      subscriptionApi.getAll(),
+    ]);
+    setWallets(updatedWallets);
+    setTransactions(updatedTx);
+    setWalletSummary(updatedSummary);
+    setSubscriptions(updatedSubs);
   };
 
   const addCategory = async (category: { name: string; type: string; color?: string; icon?: string }) => {
@@ -407,13 +416,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }) => {
     const created = await transactionApi.create(transaction);
     setTransactions(prev => [created, ...prev]);
-    // Refresh wallets and credits to get updated balance
-    const [updatedWallets, updatedCredits] = await Promise.all([
+    // Refresh wallets, credits, and summary to get updated balance
+    const [updatedWallets, updatedCredits, updatedSummary] = await Promise.all([
       walletApi.getAll(),
-      creditApi.getAll()
+      creditApi.getAll(),
+      walletApi.getSummary(),
     ]);
     setWallets(updatedWallets);
     setCredits(updatedCredits);
+    setWalletSummary(updatedSummary);
   };
 
   const updateTransaction = async (id: string, transaction: { 
@@ -428,25 +439,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }) => {
     const updated = await transactionApi.update(id, transaction);
     setTransactions(prev => prev.map(t => t.id === id ? updated : t));
-    // Refresh wallets and credits to get updated balance
-    const [updatedWallets, updatedCredits] = await Promise.all([
+    // Refresh wallets, credits, and summary to get updated balance
+    const [updatedWallets, updatedCredits, updatedSummary] = await Promise.all([
       walletApi.getAll(),
-      creditApi.getAll()
+      creditApi.getAll(),
+      walletApi.getSummary(),
     ]);
     setWallets(updatedWallets);
     setCredits(updatedCredits);
+    setWalletSummary(updatedSummary);
   };
 
   const deleteTransaction = async (id: string) => {
     await transactionApi.delete(id);
     setTransactions(prev => prev.filter(t => t.id !== id));
-    // Refresh wallets and credits to get updated balance
-    const [updatedWallets, updatedCredits] = await Promise.all([
+    // Refresh wallets, credits, and summary to get updated balance
+    const [updatedWallets, updatedCredits, updatedSummary] = await Promise.all([
       walletApi.getAll(),
-      creditApi.getAll()
+      creditApi.getAll(),
+      walletApi.getSummary(),
     ]);
     setWallets(updatedWallets);
     setCredits(updatedCredits);
+    setWalletSummary(updatedSummary);
   };
 
   const transferMoney = async (data: {
@@ -470,8 +485,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       description: data.description,
       date: data.date,
     });
-    // Refresh all data
-    await fetchAllData();
+    // Targeted refresh: transfer affects wallets, transactions, and summary
+    const [updatedWallets, updatedTx, updatedSummary] = await Promise.all([
+      walletApi.getAll(),
+      transactionApi.getAll(),
+      walletApi.getSummary(),
+    ]);
+    setWallets(updatedWallets);
+    setTransactions(updatedTx);
+    setWalletSummary(updatedSummary);
   };
 
   const addSavingPlace = async (savingPlace: { name: string; targetAmount: number; currentAmount?: number; currency?: string; deadline?: string }) => {
@@ -501,8 +523,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const payCredit = async (id: string, data: { walletId: string; categoryId: string; amount: number; date?: string }) => {
     await creditApi.pay(id, data);
-    // Refresh all data since this affects wallets, credits, and transactions
-    await fetchAllData();
+    // Targeted refresh: affects credits, credit summary, wallets, wallet summary, and transactions
+    const [updatedCredits, updatedCreditSum, updatedWallets, updatedWalletSum, updatedTx] = await Promise.all([
+      creditApi.getAll(),
+      creditApi.getSummary(),
+      walletApi.getAll(),
+      walletApi.getSummary(),
+      transactionApi.getAll(),
+    ]);
+    setCredits(updatedCredits);
+    setCreditSummary(updatedCreditSum);
+    setWallets(updatedWallets);
+    setWalletSummary(updatedWalletSum);
+    setTransactions(updatedTx);
   };
 
   const deleteCredit = async (id: string) => {
@@ -547,7 +580,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const cloneBudgetPeriod = async (id: string) => {
     await budgetPeriodApi.clone(id);
-    await fetchAllData();
+    // Targeted refresh: cloning period creates new period and budget plans
+    const [updatedPeriods, updatedPlans] = await Promise.all([
+      budgetPeriodApi.getAll(),
+      budgetApi.getAll(),
+    ]);
+    setBudgetPeriods(updatedPeriods);
+    setBudgetPlans(updatedPlans);
   };
 
   const fetchPeriodAnalytics = async (id: string) => {
@@ -585,8 +624,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const paySubscription = async (id: string) => {
     const updated = await subscriptionApi.pay(id);
     setSubscriptions(prev => prev.map(s => s.id === id ? updated : s));
-    // Refresh walnuts and transactions
-    await fetchAllData();
+    // Targeted refresh: payment affects wallets, wallet summary, and transactions
+    const [updatedWallets, updatedWalletSum, updatedTx] = await Promise.all([
+      walletApi.getAll(),
+      walletApi.getSummary(),
+      transactionApi.getAll(),
+    ]);
+    setWallets(updatedWallets);
+    setWalletSummary(updatedWalletSum);
+    setTransactions(updatedTx);
   };
 
   const addPlannedExpense = async (expense: {

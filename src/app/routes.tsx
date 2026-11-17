@@ -1,32 +1,34 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router';
-import StartPage from './pages/StartPage';
-import SignupPage from './pages/SignupPage';
-import LoginPage from './pages/LoginPage';
-import AddWalletPage from './pages/AddWalletPage';
-import DashboardPage from './pages/DashboardPage';
-import TransactionsPage from './pages/TransactionsPage';
-import CategoriesPage from './pages/CategoriesPage';
-import SavingsPage from './pages/SavingsPage';
-import CreditsPage from './pages/Credits/CreditsPage';
-import BudgetPage from './pages/BudgetPage';
-import SubscriptionsPage from '@/app/pages/SubscriptionsPage';
-import ArchivePage from './pages/ArchivePage';
-import PlannedExpensesPage from './pages/PlannedExpensesPage';
-import BudgetAnalyticsPage from './pages/BudgetAnalyticsPage';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute, { PageFallback } from './components/ProtectedRoute';
+
+const StartPage = lazy(() => import('./pages/StartPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AddWalletPage = lazy(() => import('./pages/AddWalletPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
+const SavingsPage = lazy(() => import('./pages/SavingsPage'));
+const CreditsPage = lazy(() => import('./pages/Credits/CreditsPage'));
+const BudgetPage = lazy(() => import('./pages/BudgetPage'));
+const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'));
+const ArchivePage = lazy(() => import('./pages/ArchivePage'));
+const PlannedExpensesPage = lazy(() => import('./pages/PlannedExpensesPage'));
+const BudgetAnalyticsPage = lazy(() => import('./pages/BudgetAnalyticsPage'));
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    Component: StartPage,
+    element: <Suspense fallback={<PageFallback />}><StartPage /></Suspense>,
   },
   {
     path: '/signup',
-    Component: SignupPage,
+    element: <Suspense fallback={<PageFallback />}><SignupPage /></Suspense>,
   },
   {
     path: '/login',
-    Component: LoginPage,
+    element: <Suspense fallback={<PageFallback />}><LoginPage /></Suspense>,
   },
   {
     path: '/add-wallet',
