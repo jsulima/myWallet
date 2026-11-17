@@ -170,9 +170,9 @@ export default function SubscriptionsPage() {
       // Relevant if it has a payment in this period
       const hasPayment = stats.periodTransactions.some(t => t.subscriptionId === sub.id);
       
-      // OR if its next payment date falls within this period
+      // OR if its next payment date falls within this period (only for active subscriptions)
       let isDue = false;
-      if (sub.nextPaymentDate) {
+      if (sub.nextPaymentDate && sub.status === 'ACTIVE') {
         const nextDate = new Date(sub.nextPaymentDate);
         isDue = nextDate >= start && nextDate <= end;
       }
@@ -435,7 +435,7 @@ export default function SubscriptionsPage() {
                   </div>
                 </div>
 
-                {editingSub && (
+                {editingSub && editingSub.status === 'ACTIVE' && (
                   <div className="space-y-2 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
                     <div className="flex items-center justify-between mb-1">
                       <Label htmlFor="nextPaymentDate" className="text-sm font-bold text-indigo-700 ml-1">
@@ -701,7 +701,7 @@ export default function SubscriptionsPage() {
                                 <div className={cn("w-1 h-1 rounded-full", sub.status === 'ACTIVE' ? "bg-emerald-500" : "bg-slate-400")} />
                                 {t(`subscriptions.${sub.status.toLowerCase()}`)}
                               </Badge>
-                              {!stats.isAllTime && (
+                              {!stats.isAllTime && (sub.status === 'ACTIVE' || isPaidForPeriod) && (
                                 <Badge variant="outline" className={cn(
                                   "rounded-full px-2 py-0.5 font-black text-[9px] border tracking-tighter uppercase flex w-fit items-center gap-1",
                                   isPaidForPeriod 
@@ -716,17 +716,21 @@ export default function SubscriptionsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className={cn(
-                              "flex flex-col px-3 py-1.5 rounded-xl border w-fit font-bold",
-                              isDueSoon && sub.status === 'ACTIVE' && (stats.isAllTime || !isPaidForPeriod) ? "bg-rose-50 border-rose-100 text-rose-600" : 
-                              !stats.isAllTime && isPaidForPeriod ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
-                              "bg-slate-50 border-slate-100 text-slate-600"
-                            )}>
-                               <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">
-                                 {!stats.isAllTime && isPaidForPeriod ? t('subscriptions.nextPayment') : t('subscriptions.dueOn', "Due Date")}
-                               </span>
-                               <span className="text-sm leading-none">{format(nextDate, 'MMM d, yyyy')}</span>
-                            </div>
+                            {sub.status === 'ACTIVE' ? (
+                              <div className={cn(
+                                "flex flex-col px-3 py-1.5 rounded-xl border w-fit font-bold",
+                                isDueSoon && (stats.isAllTime || !isPaidForPeriod) ? "bg-rose-50 border-rose-100 text-rose-600" : 
+                                !stats.isAllTime && isPaidForPeriod ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                                "bg-slate-50 border-slate-100 text-slate-600"
+                              )}>
+                                 <span className="text-[10px] uppercase tracking-tighter opacity-70 leading-none mb-1">
+                                   {!stats.isAllTime && isPaidForPeriod ? t('subscriptions.nextPayment') : t('subscriptions.dueOn', "Due Date")}
+                                 </span>
+                                 <span className="text-sm leading-none">{format(nextDate, 'MMM d, yyyy')}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 font-bold text-sm pl-3">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right pr-8">
                              <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -819,7 +823,7 @@ export default function SubscriptionsPage() {
                         </div>
                         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 ring-1 ring-white/10 shadow-lg">
                             <p className="text-[10px] uppercase font-black text-white/60 tracking-widest mb-1">{t('subscriptions.nextPayment')}</p>
-                            <p className="text-2xl font-black">{format(parseISO(selectedSub.nextPaymentDate), 'MMM d')}</p>
+                            <p className="text-2xl font-black">{selectedSub.status === 'ACTIVE' ? format(parseISO(selectedSub.nextPaymentDate), 'MMM d') : '—'}</p>
                         </div>
                     </div>
                   </div>
