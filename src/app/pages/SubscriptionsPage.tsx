@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 // Subscription Page Component
-import { Plus, RefreshCcw, Calendar, Trash2, Edit2, Play, Pause, ChevronRight, History, Wallet, Info, CreditCard } from 'lucide-react';
+import { Plus, RefreshCcw, Calendar, Trash2, Edit2, Play, Pause, ChevronRight, History, Wallet, Info, CreditCard, Check, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -22,7 +22,7 @@ import { cn } from '../components/ui/utils';
 
 export default function SubscriptionsPage() {
   const { t } = useTranslation();
-  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, categories, wallets, budgetPeriods, transactions, rates } = useApp();
+  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, updateTransaction, categories, wallets, budgetPeriods, transactions, rates } = useApp();
   
   // States
   const [isOpen, setIsOpen] = useState(false);
@@ -34,6 +34,9 @@ export default function SubscriptionsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [subToDelete, setSubToDelete] = useState<string | null>(null);
   const [historyTransactions, setHistoryTransactions] = useState<Transaction[]>([]);
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [editingTxAmount, setEditingTxAmount] = useState<string>('');
+  const [isSavingTx, setIsSavingTx] = useState(false);
   
   // Filtering States
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(() => {
@@ -317,7 +320,42 @@ export default function SubscriptionsPage() {
   const openDetails = (sub: Subscription) => {
     setSelectedSub(sub);
     setDetailsOpen(true);
+    setEditingTxId(null);
     fetchHistory(sub.id);
+  };
+
+  const handleStartEditTx = (tx: Transaction) => {
+    setEditingTxId(tx.id);
+    setEditingTxAmount(tx.amount.toString());
+  };
+
+  const handleSaveTxAmount = async (tx: Transaction) => {
+    const newAmount = parseFloat(editingTxAmount);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      toast.error(t('common.invalidAmount', 'Please enter a valid amount'));
+      return;
+    }
+    setIsSavingTx(true);
+    try {
+      await updateTransaction(tx.id, {
+        walletId: tx.walletId,
+        categoryId: tx.categoryId,
+        type: tx.type,
+        amount: newAmount,
+        description: tx.description,
+        date: tx.date,
+      });
+      setHistoryTransactions(prev => prev.map(item => item.id === tx.id ? { ...item, amount: newAmount } : item));
+      setEditingTxId(null);
+      toast.success(t('common.savedSuccessfully', 'Saved successfully'));
+      if (selectedSub) {
+        fetchHistory(selectedSub.id);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update transaction');
+    } finally {
+      setIsSavingTx(false);
+    }
   };
 
 
@@ -766,7 +804,10 @@ export default function SubscriptionsPage() {
         )}
 
         {/* Subscription Details Dialog (Popup) */}
-        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <Dialog open={detailsOpen} onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setEditingTxId(null);
+        }}>
           <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-[2.5rem] bg-slate-50">
             {selectedSub && (
               <div className="flex flex-col h-[85vh] sm:h-auto max-h-[90vh]">
@@ -881,12 +922,68 @@ export default function SubscriptionsPage() {
                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{tx.wallet?.name}</p>
                                </div>
                              </div>
-                             <div className="text-right">
-                               <p className="text-sm font-black text-rose-600 leading-none mb-1">
-                                 -{getCurrencySymbol(tx.wallet?.currency || 'USD')}{formatAmount(tx.amount)}
-                               </p>
-                               <p className="text-[10px] font-medium text-slate-400 italic truncate max-w-[120px]">{tx.description}</p>
-                             </div>
+                             {editingTxId === tx.id ? (
+                               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                 <span className="text-sm font-bold text-rose-600">
+                                   -{getCurrencySymbol(tx.wallet?.currency || 'USD')}
+                                 </span>
+                                 <Input 
+                                   type="number" 
+                                   step="0.01" 
+                                   min="0.01"
+                                   value={editingTxAmount} 
+                                   onChange={(e) => setEditingTxAmount(e.target.value)} 
+                                   className="h-9 w-24 text-right font-black text-sm px-2 rounded-xl bg-slate-50 border-indigo-300 focus:ring-indigo-500"
+                                   autoFocus
+                                   disabled={isSavingTx}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter') handleSaveTxAmount(tx);
+                                     if (e.key === 'Escape') setEditingTxId(null);
+                                   }}
+                                 />
+                                 <Button 
+                                   size="icon" 
+                                   variant="ghost" 
+                                   className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 rounded-xl p-0"
+                                   onClick={() => handleSaveTxAmount(tx)}
+                                   disabled={isSavingTx}
+                                   title={t('common.save', "Save")}
+                                 >
+                                   <Check className={cn("h-4 w-4", isSavingTx && "animate-spin")} />
+                                 </Button>
+                                 <Button 
+                                   size="icon" 
+                                   variant="ghost" 
+                                   className="h-8 w-8 text-slate-400 hover:bg-slate-100 rounded-xl p-0"
+                                   onClick={() => setEditingTxId(null)}
+                                   disabled={isSavingTx}
+                                   title={t('common.cancel', "Cancel")}
+                                 >
+                                   <X className="h-4 w-4" />
+                                 </Button>
+                               </div>
+                             ) : (
+                               <div className="flex items-center gap-2">
+                                 <Button
+                                   size="icon"
+                                   variant="ghost"
+                                   className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg p-0 opacity-70 group-hover:opacity-100 transition-opacity"
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     handleStartEditTx(tx);
+                                   }}
+                                   title={t('subscriptions.editAmount', "Edit amount")}
+                                 >
+                                   <Edit2 className="h-3.5 w-3.5" />
+                                 </Button>
+                                 <div className="text-right">
+                                   <p className="text-sm font-black text-rose-600 leading-none mb-1">
+                                     -{getCurrencySymbol(tx.wallet?.currency || 'USD')}{formatAmount(tx.amount)}
+                                   </p>
+                                   <p className="text-[10px] font-medium text-slate-400 italic truncate max-w-[150px]">{tx.description}</p>
+                                 </div>
+                               </div>
+                             )}
                            </div>
                         ))
                       ) : (
