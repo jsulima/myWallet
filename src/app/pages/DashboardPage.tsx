@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router';
 import { 
   Wallet as WalletIcon, 
@@ -45,63 +45,78 @@ export default function DashboardPage() {
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const balanceByCurrency = wallets.reduce((acc, wallet) => {
-    const cur = wallet.currency || 'USD';
-    acc[cur] = (acc[cur] || 0) + wallet.balance;
-    return acc;
-  }, {} as Record<string, number>);
+  const categoriesMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+  const walletsMap = useMemo(() => new Map(wallets.map(w => [w.id, w])), [wallets]);
 
-  const getCurrencySymbol = (cur: string) => {
+  const ratesMap = useMemo(
+    () => new Map((rates || []).map(r => [`${r.from}_${r.to}`, r.rate])),
+    [rates]
+  );
+
+  const balanceByCurrency = useMemo(() =>
+    wallets.reduce((acc, wallet) => {
+      const cur = wallet.currency || 'USD';
+      acc[cur] = (acc[cur] || 0) + wallet.balance;
+      return acc;
+    }, {} as Record<string, number>),
+    [wallets]
+  );
+
+  const getCurrencySymbol = useCallback((cur: string) => {
     if (cur === 'USD') return '$';
     if (cur === 'UAH') return '₴';
     if (cur === 'EUR') return '€';
     return cur;
-  };
+  }, []);
 
-  const convertToUSD = (amount: number, currency: string) => {
+  const convertToUSD = useCallback((amount: number, currency: string) => {
     if (currency === 'USD') return amount;
-    const rateEntry = (rates || []).find(r => r.from === currency && r.to === 'USD');
-    if (rateEntry) return amount * rateEntry.rate;
-    
-    // Fallback if rates not loaded yet or not found
+    const rate = ratesMap.get(`${currency}_USD`);
+    if (rate) return amount * rate;
     if (currency === 'UAH') return amount / 40;
     if (currency === 'EUR') return amount * 1.08;
     return amount;
-  };
+  }, [ratesMap]);
 
-  const recentTransactions = [...transactions]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
-
-  const getCategoryById = (id: string) => categories.find(c => c.id === id);
-  const getWalletById = (id: string) => wallets.find(w => w.id === id);
+  const recentTransactions = useMemo(() =>
+    [...transactions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5),
+    [transactions]
+  );
 
   // Determine active budget period
-  const activePeriod = (budgetPeriods || []).find(p => p.status === 'ACTIVE');
-  // Use budgets associated with the active period, or all active budgets if no period is defined
-  const activeBudgets = budgetPlans.filter(bp => 
-    bp.status === 'ACTIVE' && (!activePeriod || bp.periodId === activePeriod.id)
+  const activePeriod = useMemo(
+    () => (budgetPeriods || []).find(p => p.status === 'ACTIVE'),
+    [budgetPeriods]
   );
-  
-  const hasBudgetPeriod = !!activePeriod || activeBudgets.length > 0;
-  
-  const periodStart = activePeriod
-    ? new Date(activePeriod.startDate)
-    : hasBudgetPeriod
-      ? new Date(Math.min(...activeBudgets.map(bp => new Date(bp.startDate).getTime())))
-      : (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; })();
+  // Use budgets associated with the active period, or all active budgets if no period is defined
+  const activeBudgets = useMemo(() =>
+    budgetPlans.filter(bp =>
+      bp.status === 'ACTIVE' && (!activePeriod || bp.periodId === activePeriod.id)
+    ),
+    [budgetPlans, activePeriod]
+  );
 
-  const periodEnd = activePeriod
-    ? new Date(activePeriod.endDate)
-    : hasBudgetPeriod
-      ? new Date(Math.max(...activeBudgets.map(bp => new Date(bp.endDate).getTime())))
-      : (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })();
-
-  const periodLabel = activePeriod
-    ? activePeriod.name
-    : hasBudgetPeriod
-      ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
-      : t('dashboard.thisMonth');
+  const { hasBudgetPeriod, periodStart, periodEnd, periodLabel } = useMemo(() => {
+    const hasBudgetPeriod = !!activePeriod || activeBudgets.length > 0;
+    const periodStart = activePeriod
+      ? new Date(activePeriod.startDate)
+      : hasBudgetPeriod
+        ? new Date(Math.min(...activeBudgets.map(bp => new Date(bp.startDate).getTime())))
+        : (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d; })();
+    const periodEnd = activePeriod
+      ? new Date(activePeriod.endDate)
+      : hasBudgetPeriod
+        ? new Date(Math.max(...activeBudgets.map(bp => new Date(bp.endDate).getTime())))
+        : (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })();
+    const periodLabel = activePeriod
+      ? activePeriod.name
+      : hasBudgetPeriod
+        ? `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`
+        : t('dashboard.thisMonth');
+    return { hasBudgetPeriod, periodStart, periodEnd, periodLabel };
+  }, [activePeriod, activeBudgets, t]);
 
 
 
@@ -118,40 +133,42 @@ export default function DashboardPage() {
   // For charts, we still need normalized USD values to compare fairly
 
   // Prepare Budget Chart Data
-  const budgetData = activeBudgets
-    .map(bp => {
-      const category = getCategoryById(bp.categoryId);
-      const start = new Date(bp.startDate);
-      const end = new Date(bp.endDate);
+  const budgetData = useMemo(() =>
+    activeBudgets
+      .map(bp => {
+        const category = categoriesMap.get(bp.categoryId);
+        const start = new Date(bp.startDate);
+        const end = new Date(bp.endDate);
+        const startTime = start.getTime();
+        const endTime = end.getTime();
 
-      const spent = transactions
-        .filter(t => {
-          const d = new Date(t.date);
-          return (
-            t.type === 'EXPENSE' &&
-            t.categoryId === bp.categoryId &&
-            d >= start && d <= end
-          );
-        })
-        .reduce((sum, t) => {
-          const wallet = getWalletById(t.walletId);
-          return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
-        }, 0);
-      
-      const percentage = bp.limit > 0 ? (spent / bp.limit) * 100 : 0;
-      
-      return {
-        name: category?.name || 'Other',
-        planned: bp.limit,
-        actual: Math.round(spent * 100) / 100,
-        percentageRaw: percentage,
-        fill: category?.color || '#6b7280',
-        period: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`
-      };
-    })
-    .filter(bd => bd.actual > 0) // Only show if there's some expense
-    .sort((a, b) => b.percentageRaw - a.percentageRaw) // Sort from most used by desc
-    .slice(0, 8); // Top active budgets
+        const spent = transactions
+          .filter(t => {
+            if (t.type !== 'EXPENSE' || t.categoryId !== bp.categoryId) return false;
+            const d = new Date(t.date).getTime();
+            return d >= startTime && d <= endTime;
+          })
+          .reduce((sum, t) => {
+            const wallet = walletsMap.get(t.walletId);
+            return sum + convertToUSD(t.amount, wallet?.currency || 'USD');
+          }, 0);
+
+        const percentage = bp.limit > 0 ? (spent / bp.limit) * 100 : 0;
+
+        return {
+          name: category?.name || 'Other',
+          planned: bp.limit,
+          actual: Math.round(spent * 100) / 100,
+          percentageRaw: percentage,
+          fill: category?.color || '#6b7280',
+          period: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`
+        };
+      })
+      .filter(bd => bd.actual > 0)
+      .sort((a, b) => b.percentageRaw - a.percentageRaw)
+      .slice(0, 8),
+    [activeBudgets, categoriesMap, walletsMap, transactions, convertToUSD]
+  );
 
 
 
@@ -616,8 +633,8 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-3">
                   {recentTransactions.map((transaction) => {
-                    const category = getCategoryById(transaction.categoryId);
-                    const wallet = getWalletById(transaction.walletId);
+                    const category = categoriesMap.get(transaction.categoryId);
+                    const wallet = walletsMap.get(transaction.walletId);
                     return (
                       <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
