@@ -34,22 +34,16 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useApp, Wallet } from '../context/AppContext';
 import Layout from '../components/Layout';
-import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { formatAmount } from '../components/ui/utils';
 import EditWalletDialog from '../components/EditWalletDialog';
 
 export default function DashboardPage() {
-  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods, reorderWallets, walletSummary, fetchPeriodAnalytics } = useApp();
-  const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
+  const { user, wallets, transactions, savingPlaces, categories, budgetPlans, budgetPeriods, reorderWallets, walletSummary, fetchPeriodAnalytics, rates } = useApp();
   const [activePeriodAnalytics, setActivePeriodAnalytics] = useState<any>(null);
   const { t } = useTranslation();
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-
-  useEffect(() => {
-    currencyApi.getRates().then(setRates).catch(console.error);
-  }, []);
 
   const balanceByCurrency = wallets.reduce((acc, wallet) => {
     const cur = wallet.currency || 'USD';
@@ -66,7 +60,7 @@ export default function DashboardPage() {
 
   const convertToUSD = (amount: number, currency: string) => {
     if (currency === 'USD') return amount;
-    const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
+    const rateEntry = (rates || []).find(r => r.from === currency && r.to === 'USD');
     if (rateEntry) return amount * rateEntry.rate;
     
     // Fallback if rates not loaded yet or not found

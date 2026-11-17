@@ -17,12 +17,12 @@ import { useTranslation } from 'react-i18next';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { format, parseISO, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { formatAmount } from '../components/ui/utils';
-import { transactionApi, currencyApi } from '../services/api';
+import { transactionApi } from '../services/api';
 import { cn } from '../components/ui/utils';
 
 export default function SubscriptionsPage() {
   const { t } = useTranslation();
-  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, categories, wallets, budgetPeriods, transactions } = useApp();
+  const { subscriptions, addSubscription, updateSubscription, deleteSubscription, paySubscription, categories, wallets, budgetPeriods, transactions, rates } = useApp();
   
   // States
   const [isOpen, setIsOpen] = useState(false);
@@ -34,7 +34,6 @@ export default function SubscriptionsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [subToDelete, setSubToDelete] = useState<string | null>(null);
   const [historyTransactions, setHistoryTransactions] = useState<Transaction[]>([]);
-  const [rates, setRates] = useState<{ from: string; to: string; rate: number }[]>([]);
   
   // Filtering States
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(() => {
@@ -55,13 +54,9 @@ export default function SubscriptionsPage() {
     note: '',
   });
 
-  useEffect(() => {
-    currencyApi.getRates().then(setRates).catch(console.error);
-  }, []);
-
   const convertToUSD = (amount: number, currency: string) => {
     if (currency === 'USD') return amount;
-    const rateEntry = rates.find(r => r.from === currency && r.to === 'USD');
+    const rateEntry = (rates || []).find(r => r.from === currency && r.to === 'USD');
     if (rateEntry) return amount * rateEntry.rate;
     if (currency === 'UAH') return amount / 40;
     return amount;

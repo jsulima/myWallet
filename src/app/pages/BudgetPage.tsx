@@ -8,7 +8,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useApp, CurrencyRate } from '../context/AppContext';
 import Layout from '../components/Layout';
 import { toast } from 'sonner';
-import { currencyApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../components/ui/badge';
 import { BudgetCard } from './Budget/BudgetCard';
@@ -75,22 +74,8 @@ export default function BudgetPage() {
 
   const [sortByMode, setSortByMode] = useState<'custom' | 'limit' | 'spent' | 'name'>('custom');
 
-  // Rates fallback (uses appData.rates if available; otherwise fetches once)
-  const [fallbackRates, setFallbackRates] = useState<CurrencyRate[]>([]);
-  const rawRates = (Array.isArray(appData?.rates) && appData.rates.length > 0) ? appData.rates : fallbackRates;
-  const rates = Array.isArray(rawRates) ? rawRates : [];
-
-  useEffect(() => {
-    if (!Array.isArray(appData?.rates) || appData.rates.length === 0) {
-      currencyApi.getRates()
-        .then((res: any) => {
-          if (Array.isArray(res)) {
-            setFallbackRates(res);
-          }
-        })
-        .catch(console.error);
-    }
-  }, [appData?.rates]);
+  // Rates from AppContext
+  const rates: CurrencyRate[] = Array.isArray(appData?.rates) ? appData.rates : [];
 
   // Exact scroll & focus retention refs
   const savedScrollYRef = useRef<number>(0);
